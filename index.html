@@ -142,6 +142,7 @@ button:disabled{ opacity:0.35; pointer-events:none; }
   border:1px solid var(--border-strong); color:var(--text); font-family:var(--font-mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
 }
 .header-btn:hover{ border-color:var(--accent); color:var(--accent-glow); }
+.header-btn.active{ background:var(--grad-accent); color:#fff; border-color:transparent; }
 #save-indicator{ font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); white-space:nowrap; }
 #save-indicator.active{ color:var(--green); }
 
@@ -374,8 +375,14 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .reverb-size-btn.active{ background:var(--grad-accent); color:#fff; border-color:transparent; }
 .fader-wrap{ display:flex; flex-direction:column; align-items:center; gap:8px; width:100%; }
 .fader-db{ font-family:var(--font-mono); font-size:10px; color:var(--accent-glow); }
+.fader-row{ display:flex; align-items:center; gap:5px; }
 .fader-track{ position:relative; width:52px; height:140px; border-radius:6px; background:linear-gradient(180deg,#0c0c10,#1a1a20); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; }
 .fader-input{ width:120px; transform:rotate(-90deg); background:transparent; }
+.fader-scale-wrap{ display:flex; align-items:stretch; gap:4px; height:140px; }
+.fader-scale-labels{ position:relative; width:20px; }
+.fader-scale-tick{ position:absolute; right:0; transform:translateY(-50%); font-family:var(--font-mono); font-size:6.5px; color:var(--text-dim); white-space:nowrap; line-height:1; }
+.fader-meter{ position:relative; width:7px; border-radius:3px; overflow:hidden; background:linear-gradient(180deg, #ff2743 0%, #ffb020 16%, #37e08c 42%, #1c8a52 100%); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06); }
+.fader-meter-mask{ position:absolute; top:0; left:0; right:0; height:100%; background:#0c0c10; }
 .fader-input::-webkit-slider-runnable-track{ height:4px; background:linear-gradient(90deg,var(--panel),var(--accent-deep),var(--accent)); border-radius:2px; }
 .fader-input::-webkit-slider-thumb{ -webkit-appearance:none; width:32px; height:16px; border-radius:4px; background:linear-gradient(180deg,#3d3a42,#131114); border:1px solid var(--accent); margin-top:-6px; box-shadow:0 0 6px rgba(255,39,67,0.5); }
 .fader-input::-moz-range-thumb{ width:32px; height:16px; border-radius:4px; background:linear-gradient(180deg,#3d3a42,#131114); border:1px solid var(--accent); }
@@ -410,19 +417,33 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .app-footer{ text-align:center; padding:20px; font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); }
 
 /* ============================= MULTIVIEW ============================= */
-.multiview-hint{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); margin-bottom:14px; text-align:center; }
-.multiview-grid{ display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+#app.multiview-mode{ height:100vh; overflow:hidden; }
+#app.multiview-mode .app-main{ flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding:10px 16px; }
+#app.multiview-mode .app-footer{ display:none; }
+#section-multiview{ height:100%; }
+#section-multiview.active{ display:flex !important; flex-direction:column; height:100%; min-height:0; }
+.multiview-hint{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); margin-bottom:8px; text-align:center; flex:0 0 auto; }
+.mv-wrap{ flex:1; min-height:0; display:flex; flex-direction:column; }
+.mv-row{ display:flex; min-height:0; }
+.mv-row-1{ flex:1 1 0; }
+.mv-row-2{ flex:1 1 0; }
+.mv-hsplit{ flex:0 0 10px; cursor:row-resize; display:flex; align-items:center; justify-content:center; touch-action:none; }
+.mv-hsplit::after{ content:''; width:44px; height:3px; background:var(--border-strong); border-radius:2px; }
+.mv-hsplit:hover::after{ background:var(--accent); }
+.mv-vsplit{ flex:0 0 10px; cursor:col-resize; display:flex; align-items:center; justify-content:center; touch-action:none; }
+.mv-vsplit::after{ content:''; height:44px; width:3px; background:var(--border-strong); border-radius:2px; }
+.mv-vsplit:hover::after{ background:var(--accent); }
 .multiview-panel{
-  resize:both; overflow:auto; width:400px; height:380px; min-width:280px; min-height:200px; max-width:100%;
-  background:var(--grad-panel); border:1px solid var(--border-strong); border-radius:14px; padding:16px;
+  flex:1 1 0; min-width:0; min-height:0; overflow:hidden; display:flex; flex-direction:column;
+  background:var(--grad-panel); border:1px solid var(--border-strong); border-radius:14px;
 }
 .multiview-panel-header{
-  font-family:var(--font-display); font-weight:700; font-size:14px; letter-spacing:0.05em; text-transform:uppercase;
-  color:var(--accent-glow); margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--border);
-  position:sticky; top:-16px; background:var(--panel); margin:-16px -16px 12px; padding:16px 16px 10px;
+  flex:0 0 auto; font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.05em; text-transform:uppercase;
+  color:var(--accent-glow); padding:12px 16px; border-bottom:1px solid var(--border); background:var(--panel);
+  border-radius:14px 14px 0 0;
 }
+.multiview-panel-body{ flex:1; min-height:0; overflow:auto; padding:14px; }
 .multiview-panel-body .section-panel{ background:transparent; border:none; padding:0; }
-.multiview-panel-body{ min-height:100px; }
 
 /* ============================= RESPONSIVE ============================= */
 @media (max-width:640px){
@@ -495,6 +516,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
       <span id="save-indicator"></span>
     </div>
     <div class="header-right">
+      <button class="header-btn" id="multiview-btn" title="Multiview — see every section at once"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Multiview</button>
       <button class="header-btn" id="settings-btn"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"></path></svg> Settings</button>
     </div>
   </header>
@@ -505,7 +527,6 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
     <button class="nav-tab" data-tab="loops">Loops</button>
     <button class="nav-tab" data-tab="music">Music</button>
     <button class="nav-tab" data-tab="mix">Mix</button>
-    <button class="nav-tab" data-tab="multiview">Multiview</button>
   </nav>
 
   <main class="app-main">
@@ -525,7 +546,6 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
             </div>
           </div>
           <div class="key-grid" id="sp-piano"></div>
-          <div class="piano-current-label" id="sp-current-label"></div>
         </div>
         <div id="sp-grid"></div>
       </div>
@@ -599,13 +619,21 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
     <!-- MULTIVIEW SECTION — shows every section on one page. Drag any panel's
          bottom-right corner to resize it (native browser resize handle). -->
     <section class="section" id="section-multiview">
-      <div class="multiview-hint">Drag the ⌟ corner of any panel to resize it. This is the same live content as the other tabs — just laid out together.</div>
-      <div class="multiview-grid">
-        <div class="multiview-panel" id="mv-panel-soundpads"><div class="multiview-panel-header">Sound Pads</div><div class="multiview-panel-body" id="mv-slot-soundpads"></div></div>
-        <div class="multiview-panel" id="mv-panel-soundboard"><div class="multiview-panel-header">Soundboard</div><div class="multiview-panel-body" id="mv-slot-soundboard"></div></div>
-        <div class="multiview-panel" id="mv-panel-loops"><div class="multiview-panel-header">Loops</div><div class="multiview-panel-body" id="mv-slot-loops"></div></div>
-        <div class="multiview-panel" id="mv-panel-music"><div class="multiview-panel-header">Music</div><div class="multiview-panel-body" id="mv-slot-music"></div></div>
-        <div class="multiview-panel" id="mv-panel-mix" style="width:640px;"><div class="multiview-panel-header">Mix</div><div class="multiview-panel-body" id="mv-slot-mix"></div></div>
+      <div class="multiview-hint">Drag any divider to resize that row or column — everything fits on screen, no scrolling needed.</div>
+      <div class="mv-wrap" id="mv-wrap">
+        <div class="mv-row mv-row-1" id="mv-row-1">
+          <div class="multiview-panel" id="mv-panel-soundpads"><div class="multiview-panel-header">Sound Pads</div><div class="multiview-panel-body" id="mv-slot-soundpads"></div></div>
+          <div class="mv-vsplit" id="mv-vsplit-1"></div>
+          <div class="multiview-panel" id="mv-panel-soundboard"><div class="multiview-panel-header">Soundboard</div><div class="multiview-panel-body" id="mv-slot-soundboard"></div></div>
+          <div class="mv-vsplit" id="mv-vsplit-2"></div>
+          <div class="multiview-panel" id="mv-panel-loops"><div class="multiview-panel-header">Loops</div><div class="multiview-panel-body" id="mv-slot-loops"></div></div>
+        </div>
+        <div class="mv-hsplit" id="mv-hsplit-1"></div>
+        <div class="mv-row mv-row-2" id="mv-row-2">
+          <div class="multiview-panel" id="mv-panel-music" style="flex:0.8 1 0;"><div class="multiview-panel-header">Music</div><div class="multiview-panel-body" id="mv-slot-music"></div></div>
+          <div class="mv-vsplit" id="mv-vsplit-3"></div>
+          <div class="multiview-panel" id="mv-panel-mix" style="flex:1.6 1 0;"><div class="multiview-panel-header">Mix</div><div class="multiview-panel-body" id="mv-slot-mix"></div></div>
+        </div>
       </div>
     </section>
 
@@ -1169,13 +1197,6 @@ function renderKeyGrid(){
   });
   document.getElementById('sp-mode-major').classList.toggle('active', activeSPMode === 'major');
   document.getElementById('sp-mode-minor').classList.toggle('active', activeSPMode === 'minor');
-  const current = CHROMATIC_KEYS.find(function(k){ return k.id === activeSPCategory; });
-  const label = document.getElementById('sp-current-label');
-  label.innerHTML = '';
-  label.appendChild(document.createTextNode('Category: '));
-  const b = document.createElement('b');
-  b.textContent = current.label.replace('\u266F', '#') + (current.sub ? ' / ' + current.sub : '') + ' ' + (activeSPMode === 'major' ? 'Major' : 'Minor');
-  label.appendChild(b);
 }
 document.getElementById('sp-mode-major').addEventListener('click', function(){ activeSPMode = 'major'; renderSoundPadsUI(); });
 document.getElementById('sp-mode-minor').addEventListener('click', function(){ activeSPMode = 'minor'; renderSoundPadsUI(); });
@@ -2184,6 +2205,7 @@ const multiviewHomes = {};
 function enterMultiview(){
   if (multiviewActive) return;
   multiviewActive = true;
+  document.getElementById('app').classList.add('multiview-mode');
   Object.keys(MULTIVIEW_SLOTS).forEach(function(key){
     const sectionEl = document.getElementById(MULTIVIEW_SLOTS[key]);
     const panelContent = sectionEl.querySelector('.section-panel');
@@ -2195,6 +2217,7 @@ function enterMultiview(){
 function exitMultiview(){
   if (!multiviewActive) return;
   multiviewActive = false;
+  document.getElementById('app').classList.remove('multiview-mode');
   Object.keys(MULTIVIEW_SLOTS).forEach(function(key){
     const home = multiviewHomes[key];
     const slot = document.getElementById('mv-slot-' + key);
@@ -2203,6 +2226,41 @@ function exitMultiview(){
     if (home.next && home.next.parentNode === home.parent) home.parent.insertBefore(content, home.next);
     else home.parent.appendChild(content);
   });
+}
+function initMultiviewSplitter(handleId, direction, elA, elB){
+  const handle = document.getElementById(handleId);
+  if (!handle) return;
+  handle.addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    try { handle.setPointerCapture(e.pointerId); } catch(err){}
+    const isRow = direction === 'row';
+    const startPos = isRow ? e.clientX : e.clientY;
+    const rectA = elA.getBoundingClientRect();
+    const rectB = elB.getBoundingClientRect();
+    const startA = isRow ? rectA.width : rectA.height;
+    const startB = isRow ? rectB.width : rectB.height;
+    function onMove(ev){
+      const pos = isRow ? ev.clientX : ev.clientY;
+      const delta = pos - startPos;
+      const newA = Math.max(140, startA + delta);
+      const newB = Math.max(140, startB - delta);
+      elA.style.flex = '0 0 ' + newA + 'px';
+      elB.style.flex = '0 0 ' + newB + 'px';
+    }
+    function onUp(){
+      try { handle.releasePointerCapture(e.pointerId); } catch(err){}
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  });
+}
+function initAllMultiviewSplitters(){
+  initMultiviewSplitter('mv-vsplit-1', 'row', document.getElementById('mv-panel-soundpads'), document.getElementById('mv-panel-soundboard'));
+  initMultiviewSplitter('mv-vsplit-2', 'row', document.getElementById('mv-panel-soundboard'), document.getElementById('mv-panel-loops'));
+  initMultiviewSplitter('mv-vsplit-3', 'row', document.getElementById('mv-panel-music'), document.getElementById('mv-panel-mix'));
+  initMultiviewSplitter('mv-hsplit-1', 'col', document.getElementById('mv-row-1'), document.getElementById('mv-row-2'));
 }
 
 /* ============================================================
@@ -2216,8 +2274,16 @@ document.getElementById('main-nav').addEventListener('click', function(e){
   document.querySelectorAll('.section').forEach(function(s){
     s.classList.toggle('active', s.id === 'section-' + tab);
   });
-  if (tab === 'multiview') enterMultiview();
-  else exitMultiview();
+  document.getElementById('multiview-btn').classList.remove('active');
+  exitMultiview();
+});
+document.getElementById('multiview-btn').addEventListener('click', function(){
+  document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.section').forEach(function(s){
+    s.classList.toggle('active', s.id === 'section-multiview');
+  });
+  this.classList.add('active');
+  enterMultiview();
 });
 
 
@@ -2328,6 +2394,24 @@ document.getElementById('settings-clear-data-btn').addEventListener('click', fun
 /* ============================================================
    MIX SECTION
 ============================================================ */
+const FADER_SCALE_TICKS = [
+  { db:10, pct:2 }, { db:5, pct:10 }, { db:0, pct:20 }, { db:-5, pct:29 },
+  { db:-10, pct:39 }, { db:-20, pct:55 }, { db:-30, pct:68 }, { db:-40, pct:79 },
+  { db:-50, pct:88 }, { db:-60, pct:95 }
+];
+function buildFaderScale(ch){
+  const wrap = el('div', { class: 'fader-scale-wrap' });
+  const labels = el('div', { class: 'fader-scale-labels' });
+  FADER_SCALE_TICKS.forEach(function(t){
+    labels.appendChild(el('div', { class: 'fader-scale-tick', style: 'top:' + t.pct + '%;', text: (t.db > 0 ? '+' : '') + t.db }));
+  });
+  const mask = el('div', { class: 'fader-meter-mask' });
+  const meter = el('div', { class: 'fader-meter' }, [mask]);
+  wrap.appendChild(labels);
+  wrap.appendChild(meter);
+  ch.meterMaskEl = mask;
+  return wrap;
+}
 function buildFader(ch, faderKey){
   const wrap = el('div', { class: 'fader-wrap' });
   const dbLabel = el('div', { class: 'fader-db', text: gainToDbLabel(ch.fader.gain.value) });
@@ -2342,8 +2426,10 @@ function buildFader(ch, faderKey){
   });
   input.addEventListener('change', function(){ saveMixSettings(); });
   const track = el('div', { class: 'fader-track' }, [input]);
+  const scale = buildFaderScale(ch);
+  const row = el('div', { class: 'fader-row' }, [track, scale]);
   wrap.appendChild(dbLabel);
-  wrap.appendChild(track);
+  wrap.appendChild(row);
   wrap._input = input; wrap._dbLabel = dbLabel;
   return wrap;
 }
@@ -2877,20 +2963,47 @@ function drawMiniEqCurve(canvas, ch){
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   const c2d = canvas.getContext('2d');
-  if (rect.width > 0){
+  if (rect.width > 0 && (canvas._mvW !== rect.width || canvas._mvH !== rect.height)){
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     c2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvas._mvW = rect.width; canvas._mvH = rect.height;
   }
   const cw = canvas.clientWidth || 150, chh = canvas.clientHeight || 46;
+  if (!cw || !chh) return;
   c2d.clearRect(0, 0, cw, chh);
-  const freqArray = new Float32Array(Math.max(1, Math.floor(cw)));
-  for (let x = 0; x < freqArray.length; x++) freqArray[x] = xToFreq(x, cw);
-  const db = computeCombinedResponseDb(ch.bands, freqArray);
+
+  // live spectrum fill, reading real signal from this channel's analyser
+  if (ch.specAnalyser && ctx){
+    const bufferLen = ch.specAnalyser.frequencyBinCount;
+    if (!canvas._specData || canvas._specData.length !== bufferLen) canvas._specData = new Uint8Array(bufferLen);
+    const data = canvas._specData;
+    ch.specAnalyser.getByteFrequencyData(data);
+    const sampleRate = ctx.sampleRate;
+    const grad = c2d.createLinearGradient(0, 0, cw, 0);
+    grad.addColorStop(0, '#5b6bff'); grad.addColorStop(0.35, '#37e08c'); grad.addColorStop(0.7, '#e0c22e'); grad.addColorStop(1, '#ff2743');
+    c2d.beginPath(); c2d.moveTo(0, chh);
+    for (let x = 0; x < cw; x++){
+      const freq = xToFreq(x, cw);
+      let bin = Math.round(freq * ch.specAnalyser.fftSize / sampleRate);
+      bin = clamp(bin, 0, bufferLen - 1);
+      const mag = data[bin] / 255;
+      c2d.lineTo(x, chh - mag * chh * 0.9);
+    }
+    c2d.lineTo(cw, chh); c2d.closePath();
+    c2d.fillStyle = grad; c2d.globalAlpha = 0.5; c2d.fill(); c2d.globalAlpha = 1;
+  }
+
+  // exact combined EQ response curve, on top of the spectrum
+  if (!canvas._freqArr || canvas._freqArr.length !== Math.floor(cw)){
+    canvas._freqArr = new Float32Array(Math.max(1, Math.floor(cw)));
+    for (let x = 0; x < canvas._freqArr.length; x++) canvas._freqArr[x] = xToFreq(x, cw);
+  }
+  const db = computeCombinedResponseDb(ch.bands, canvas._freqArr);
   c2d.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent-glow').trim() || '#d81f2e';
   c2d.lineWidth = 1.5;
   c2d.beginPath();
-  for (let x = 0; x < freqArray.length; x++){
+  for (let x = 0; x < canvas._freqArr.length; x++){
     const y = gainToY(clamp(db[x], -15, 15), chh);
     if (x === 0) c2d.moveTo(x, y); else c2d.lineTo(x, y);
   }
@@ -2899,6 +3012,41 @@ function drawMiniEqCurve(canvas, ch){
   c2d.lineWidth = 1;
   c2d.beginPath(); c2d.moveTo(0, chh / 2); c2d.lineTo(cw, chh / 2); c2d.stroke();
 }
+function computeChannelLevel(analyser){
+  if (!analyser) return 0;
+  if (!analyser._levelBuf || analyser._levelBuf.length !== analyser.fftSize) analyser._levelBuf = new Uint8Array(analyser.fftSize);
+  const data = analyser._levelBuf;
+  analyser.getByteTimeDomainData(data);
+  let sumSq = 0;
+  for (let i = 0; i < data.length; i++){ const v = (data[i] - 128) / 128; sumSq += v * v; }
+  const rms = Math.sqrt(sumSq / data.length);
+  return clamp(rms * 4.5, 0, 1);
+}
+function startMiniEqAnimationLoop(){
+  function frame(){
+    if (ctx){
+      MIX_BUS_KEYS.forEach(function(key){
+        const ch = state.channels[key];
+        if (ch && ch.miniCanvasEls){
+          ch.miniCanvasEls.forEach(function(canvas){
+            if (canvas.clientWidth > 0 && canvas.offsetParent !== null) drawMiniEqCurve(canvas, ch);
+          });
+        }
+        if (ch && ch.meterMaskEl){
+          const level = computeChannelLevel(ch.analyser);
+          ch.meterMaskEl.style.height = (100 - level * 100) + '%';
+        }
+      });
+      if (masterBus && masterBus.meterMaskEl){
+        const level = computeChannelLevel(masterBus.analyser);
+        masterBus.meterMaskEl.style.height = (100 - level * 100) + '%';
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
 function drawSpectrum(canvas, analyser){
   const c2d = canvas.getContext('2d');
   const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -3432,6 +3580,8 @@ initMediaListUI('loop');
 initMediaListUI('music');
 renderLoopsUI();
 renderMusicUI();
+initAllMultiviewSplitters();
+startMiniEqAnimationLoop();
 startLoadingSequence();
 
 window.addEventListener('resize', function(){
