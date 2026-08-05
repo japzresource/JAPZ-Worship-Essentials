@@ -3971,5 +3971,18 @@ window.addEventListener('resize', function(){
 
 })();
 </script>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const supabase = window.supabase.createClient(
+  "https://iqjpeldglietybpviuap.supabase.co",
+  "YOUR_PUBLISHABLE_KEY"
+);
+
+console.log("✅ Connected to Supabase!");
+</script>
+
 </body>
 </html>
