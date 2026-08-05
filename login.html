@@ -14,48 +14,49 @@
 <input id="password" type="password" placeholder="Password">
 <br><br>
 
-<button onclick="signup()">Sign Up</button>
-<button onclick="signin()">Login</button>
+<button id="signupBtn">Sign Up</button>
+<button id="loginBtn">Login</button>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
 const supabase = window.supabase.createClient(
-    "https://iqjpeldglietybpviuap.supabase.co",
-    "sb_publishable_k4lw74s4lB2OFsgpWFJXBQ_g23JUFel"
+  "https://iqjpeldglietybpviuap.supabase.co",
+  "sb_publishable_k4lw74s4lB2OFsgpWFJXBQ_g23JUFel"
 );
 
-async function signup(){
-    const email=document.getElementById("email").value;
-    const password=document.getElementById("password").value;
+document.getElementById("signupBtn").addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
 
-    const {error}=await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
         email,
         password
     });
 
-    if(error){
+    if (error) {
         alert(error.message);
-    }else{
+    } else {
         alert("Account created!");
     }
-}
+});
 
-async function signin(){
-    const email=document.getElementById("email").value;
-    const password=document.getElementById("password").value;
+document.getElementById("loginBtn").addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
 
-    const {error}=await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
         email,
         password
     });
 
-    if(error){
+    if (error) {
         alert(error.message);
-    }else{
+    } else {
         alert("Logged in!");
+        window.location.href = "index.html";
     }
-}
+});
 </script>
 
 </body>
