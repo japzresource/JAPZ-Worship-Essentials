@@ -181,14 +181,23 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 .mode-toggle-track{ display:flex; background:var(--panel); border:1px solid var(--border-strong); border-radius:999px; padding:4px; gap:4px; }
 .mode-toggle-btn{ padding:8px 22px; border-radius:999px; background:transparent; border:none; color:var(--text-dim); font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.06em; }
 .mode-toggle-btn.active{ background:var(--grad-accent); color:#fff; box-shadow:0 4px 14px rgba(179,18,31,0.4); }
-.key-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.key-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; max-width:520px; margin:0 auto; }
 .key-cell{
-  aspect-ratio:1/1; border-radius:12px; background:var(--card); border:2px solid var(--border-strong);
+  position:relative; aspect-ratio:1/1; border-radius:12px; background:var(--card); border:2px solid var(--border-strong);
   color:var(--text-muted); font-family:var(--font-display); font-weight:700; font-size:19px;
-  display:flex; align-items:center; justify-content:center;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; overflow:hidden;
+  transition:transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .key-cell:hover{ border-color:rgba(216,31,46,0.5); color:var(--text); }
-.key-cell.active{ border-color:var(--accent); color:var(--accent-glow); background:linear-gradient(160deg, rgba(179,18,31,0.16), var(--card)); box-shadow:0 0 18px rgba(179,18,31,0.25); }
+.key-cell:active{ transform:scale(0.97); }
+.key-cell.empty{ border-style:dashed; opacity:0.8; }
+.key-cell.loading{ opacity:0.5; pointer-events:none; }
+.key-cell.playing{ box-shadow:0 0 0 2px var(--flash-color), 0 0 26px var(--flash-color); border-color:transparent; background:linear-gradient(160deg, rgba(179,18,31,0.28), var(--card)); }
+.key-cell.flash{ animation:padflash 0.25s ease; }
+.key-cell-label{ font-family:var(--font-display); font-weight:700; font-size:19px; }
+.key-cell.playing .key-cell-label{ color:#fff; }
+.key-cell-sub{ font-family:var(--font-mono); font-size:8.5px; color:var(--text-dim); max-width:88%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.key-cell.playing .key-cell-sub{ color:rgba(255,255,255,0.75); }
 .piano-current-label{ font-family:var(--font-mono); font-size:11px; color:var(--text-muted); text-align:center; margin-top:10px; }
 .piano-current-label b{ color:var(--accent-glow); }
 
@@ -596,7 +605,6 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
           </div>
           <div class="key-grid" id="sp-piano"></div>
         </div>
-        <div id="sp-grid"></div>
       </div>
     </section>
 
@@ -1045,11 +1053,11 @@ const settings = {
 /* ============================================================
    PAD FACTORIES
 ============================================================ */
-function makeSoundPad(catId, idx, mode){
+function makeSoundPad(catId, mode){
   return {
-    id: uid('sp'), category: catId, mode: mode || 'major', name: catId + (idx + 1),
+    id: 'sp-' + mode + '-' + catId, category: catId, mode: mode || 'major', name: catId,
     buffer: null, rawArrayBuffer: null, fileName: '', loopEnabled: false,
-    isPlaying: false, loading: false, source: null, el: null, colorIndex: idx % PALETTE.length
+    isPlaying: false, loading: false, source: null, el: null
   };
 }
 function makeEditablePad(prefix, i, defaultName){
@@ -1070,8 +1078,7 @@ function makeMusicPad(i){ return makeEditablePad('mu', i, 'TRACK ' + (i + 1)); }
 CHROMATIC_KEYS.forEach(function(k){
   SP_MODES.forEach(function(mode){
     if (!state.soundPads[mode]) state.soundPads[mode] = {};
-    state.soundPads[mode][k.id] = [];
-    for (let i = 0; i < 6; i++) state.soundPads[mode][k.id].push(makeSoundPad(k.id, i, mode));
+    state.soundPads[mode][k.id] = makeSoundPad(k.id, mode);
   });
 });
 state.drumPads = Array.from({ length: DRUM_PAD_COUNT }, function(_, i){ return makeDrumPad(i); });
@@ -1259,18 +1266,15 @@ function refreshAllUI(){
 }
 
 /* ============================================================
-   KEY GRID CATEGORY SELECTOR (Sound Pads) — uniform 12-cell grid
-   with a Major / Minor toggle, matching the reference layout
+   SOUND PADS — each of the 12 chromatic keys (x Major/Minor) is
+   itself a single playable pad: tap empty to upload, tap loaded
+   to play / stop. No extra sub-pad layer.
 ============================================================ */
-function renderKeyGrid(){
+function renderSoundPadsUI(){
   const wrap = document.getElementById('sp-piano');
   wrap.innerHTML = '';
   CHROMATIC_KEYS.forEach(function(k){
-    wrap.appendChild(el('button', {
-      class: 'key-cell' + (k.id === activeSPCategory ? ' active' : ''), text: k.label,
-      title: k.sub ? (k.label + ' / ' + k.sub) : k.label,
-      onClick: function(){ activeSPCategory = k.id; renderSoundPadsUI(); }
-    }));
+    wrap.appendChild(buildSoundPadCell(k));
   });
   document.getElementById('sp-mode-major').classList.toggle('active', activeSPMode === 'major');
   document.getElementById('sp-mode-minor').classList.toggle('active', activeSPMode === 'minor');
@@ -1278,41 +1282,12 @@ function renderKeyGrid(){
 document.getElementById('sp-mode-major').addEventListener('click', function(){ activeSPMode = 'major'; renderSoundPadsUI(); });
 document.getElementById('sp-mode-minor').addEventListener('click', function(){ activeSPMode = 'minor'; renderSoundPadsUI(); });
 
-/* ============================================================
-   SOUND PADS
-============================================================ */
-function currentSoundPadArray(){ return state.soundPads[activeSPMode][activeSPCategory]; }
-
-function renderSoundPadsUI(){
-  renderKeyGrid();
-  const gridWrap = document.getElementById('sp-grid');
-  gridWrap.innerHTML = '';
-  currentSoundPadArray().forEach(function(pad){
-    gridWrap.appendChild(buildSoundPadEl(pad));
-  });
-  gridWrap.appendChild(el('button', {
-    class: 'add-pad-btn', text: '+ Add Pad',
-    onClick: function(){
-      const arr = currentSoundPadArray();
-      arr.push(makeSoundPad(activeSPCategory, arr.length, activeSPMode));
-      renderSoundPadsUI();
-    }
-  }));
-}
-
-function buildSoundPadEl(pad){
-  const classes = ['pad-card'];
+function buildSoundPadCell(k){
+  const pad = state.soundPads[activeSPMode][k.id];
+  const classes = ['key-cell'];
   if (!pad.buffer) classes.push('empty');
   if (pad.isPlaying) classes.push('playing');
   if (pad.loading) classes.push('loading');
-  const hue = PALETTE[pad.colorIndex % PALETTE.length];
-
-  const nameInput = el('input', {
-    class: 'pad-name-label', type: 'text', value: pad.name,
-    onClick: function(e){ e.stopPropagation(); },
-    onChange: function(e){ pad.name = e.target.value || pad.name; scheduleSoundPadSave(pad.mode, pad.category); }
-  });
-  const subLabel = el('div', { class: 'pad-sub-label', text: pad.buffer ? pad.fileName : (pad.fileName ? '\u26A0 Re-upload "' + pad.fileName + '"' : 'Tap to upload') });
 
   const loopIcon = el('button', {
     class: 'corner-icon left' + (pad.loopEnabled ? ' on' : ''), html: svgIcon('loop', 11), title: 'Loop while held',
@@ -1323,12 +1298,14 @@ function buildSoundPadEl(pad){
     onClick: function(e){ e.stopPropagation(); openFilePicker(pad, function(){ scheduleSoundPadSave(pad.mode, pad.category); }); }
   });
 
-  const wrap = el('div', { class: classes.join(' '), style: '--pad-hue:' + hue + ';', onClick: function(e){ flashEl(wrap); onSoundPadClick(pad); } }, [
-    el('div', { class: 'pad-topbar' }),
+  const wrap = el('div', {
+    class: classes.join(' '), title: k.sub ? (k.label + ' / ' + k.sub) : k.label,
+    onClick: function(e){ flashEl(wrap); onSoundPadClick(pad); }
+  }, [
     pad.buffer ? loopIcon : null,
     cornerIcon,
-    nameInput,
-    subLabel
+    el('div', { class: 'key-cell-label', text: k.label }),
+    el('div', { class: 'key-cell-sub', text: pad.buffer ? pad.fileName : (pad.fileName ? '\u26A0 Re-upload' : 'Tap to upload') })
   ]);
   pad.el = wrap;
   return wrap;
