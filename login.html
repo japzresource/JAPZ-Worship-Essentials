@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Login</title>
+</head>
+<body>
+
+<h2>Worship Essentials</h2>
+
+<input id="email" type="email" placeholder="Email">
+<br><br>
+
+<input id="password" type="password" placeholder="Password">
+<br><br>
+
+<button onclick="signup()">Sign Up</button>
+<button onclick="signin()">Login</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const supabase = window.supabase.createClient(
+    "https://iqjpeldglietybpviuap.supabase.co",
+    "YOUR_PUBLISHABLE_KEY"
+);
+
+async function signup(){
+    const email=document.getElementById("email").value;
+    const password=document.getElementById("password").value;
+
+    const {error}=await supabase.auth.signUp({
+        email,
+        password
+    });
+
+    if(error){
+        alert(error.message);
+    }else{
+        alert("Account created!");
+    }
+}
+
+async function signin(){
+    const email=document.getElementById("email").value;
+    const password=document.getElementById("password").value;
+
+    const {error}=await supabase.auth.signInWithPassword({
+        email,
+        password
+    });
+
+    if(error){
+        alert(error.message);
+    }else{
+        alert("Logged in!");
+    }
+}
+</script>
+
+</body>
+</html>
