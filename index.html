@@ -985,6 +985,9 @@ function markSaving(){
    CONSTANTS
 ============================================================ */
 const CHROMATIC_KEYS = [
+  { id:'A',  label:'A',  sub:null },
+  { id:'A#', label:'A\u266F', sub:'Bb' },
+  { id:'B',  label:'B',  sub:null },
   { id:'C',  label:'C',  sub:null },
   { id:'C#', label:'C\u266F', sub:'Db' },
   { id:'D',  label:'D',  sub:null },
@@ -993,11 +996,25 @@ const CHROMATIC_KEYS = [
   { id:'F',  label:'F',  sub:null },
   { id:'F#', label:'F\u266F', sub:'Gb' },
   { id:'G',  label:'G',  sub:null },
-  { id:'G#', label:'G\u266F', sub:'Ab' },
-  { id:'A',  label:'A',  sub:null },
-  { id:'A#', label:'A\u266F', sub:'Bb' },
-  { id:'B',  label:'B',  sub:null }
+  { id:'G#', label:'G\u266F', sub:'Ab' }
 ];
+/* Expected filename for each key's pre-assigned sound (from the "Sound Walls"
+   pack) — shown on the pad so you know exactly which file to pick when you
+   tap it, instead of a generic "Tap to upload" placeholder. */
+const SP_DEFAULT_FILENAMES = {
+  'A':  '[A] - Sound Walls.wav',
+  'A#': '[Bb] - Sound Walls.wav',
+  'B':  '[B] - Sound Walls.wav',
+  'C':  '[C] - Sound Walls.wav',
+  'C#': '[C#] - Sound Walls.wav',
+  'D':  '[D] - Sound Walls.wav',
+  'D#': '[Eb] - Sound Walls.wav',
+  'E':  '[E] - Sound Walls.wav',
+  'F':  '[F] - Sound Walls.wav',
+  'F#': '[F#] - Sound Walls.wav',
+  'G':  '[G] - Sound Walls.wav',
+  'G#': '[Ab] - Sound Walls.wav'
+};
 const SP_MODES = ['major', 'minor'];
 const MIX_BUS_KEYS = ['soundpad', 'soundboard', 'loop', 'music'];
 
