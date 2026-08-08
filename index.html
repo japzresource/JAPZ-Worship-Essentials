@@ -156,6 +156,7 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 .nav-tab:hover:not(.active){ color:var(--text); }
 
 .app-main{ flex:1; padding:22px; max-width:1320px; margin:0 auto; width:100%; }
+#app.has-now-playing .app-main{ padding-bottom:150px; }
 .section{ display:none; animation:fadein 0.35s ease; }
 .section.active{ display:block; }
 @keyframes fadein{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
@@ -296,35 +297,41 @@ body[data-light-style="pulse"] .loop-row.playing{ animation:padpulse 0.9s ease-i
 .media-layout{ display:flex; gap:16px; align-items:flex-start; }
 .media-main{ flex:1; min-width:0; }
 .media-queue-panel{
-  flex:0 0 240px; background:var(--panel-2); border:1px solid var(--border-strong); border-radius:12px; padding:14px;
-  display:flex; flex-direction:column; gap:10px;
+  flex:0 0 320px; background:var(--panel-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px;
+  display:flex; flex-direction:column; gap:12px;
 }
-.media-queue-title{ font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.05em; text-transform:uppercase; color:var(--accent-glow); }
+.media-queue-title{ font-family:var(--font-display); font-weight:700; font-size:14px; letter-spacing:0.05em; text-transform:uppercase; color:var(--accent-glow); }
 .media-queue-transition{ display:flex; flex-direction:column; gap:8px; padding-bottom:10px; border-bottom:1px solid var(--border); }
 .media-queue-transition-row{ display:flex; gap:6px; }
-.transition-btn{ flex:1; padding:6px 8px; border-radius:6px; background:var(--panel); border:1px solid var(--border-strong); color:var(--text-dim); font-family:var(--font-mono); font-size:10px; }
+.transition-btn{ flex:1; padding:7px 8px; border-radius:6px; background:var(--panel); border:1px solid var(--border-strong); color:var(--text-dim); font-family:var(--font-mono); font-size:10.5px; }
 .transition-btn.active{ background:var(--grad-accent); color:#fff; border-color:transparent; }
-.transition-duration-row{ display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:10px; color:var(--text-dim); }
-.transition-duration-row input{ width:48px; padding:4px 6px; border-radius:5px; background:var(--panel); border:1px solid var(--border-strong); color:var(--text); font-family:var(--font-mono); font-size:10px; }
-.queue-play-btn{ display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border-radius:7px; background:var(--grad-accent); border:none; color:#fff; font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.05em; }
+.transition-duration-row{ display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); }
+.transition-duration-row input{ width:52px; padding:5px 6px; border-radius:5px; background:var(--panel); border:1px solid var(--border-strong); color:var(--text); font-family:var(--font-mono); font-size:10.5px; }
+.queue-play-btn{ display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border-radius:7px; background:var(--grad-accent); border:none; color:#fff; font-family:var(--font-mono); font-size:11px; letter-spacing:0.05em; }
 .queue-play-btn.stop-mode{ background:var(--panel); border:1px solid var(--border-strong); color:var(--text); }
-.media-queue-list{ display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; }
-.queue-empty-note{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); text-align:center; padding:14px 6px; }
-.queue-item{ display:flex; align-items:center; gap:6px; padding:7px 8px; border-radius:7px; background:var(--panel); border:1px solid var(--border); }
+.media-queue-list{ display:flex; flex-direction:column; gap:8px; max-height:480px; overflow-y:auto; }
+.queue-empty-note{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); text-align:center; padding:16px 6px; }
+.queue-item{ display:flex; align-items:center; gap:8px; padding:10px 11px; border-radius:8px; background:var(--panel); border:1px solid var(--border); }
 .queue-item.current{ border-color:var(--accent); box-shadow:0 0 8px rgba(216,31,46,0.3); }
-.queue-item-num{ font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); flex-shrink:0; }
-.queue-item-name{ flex:1; font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.queue-item-btns{ display:flex; gap:3px; flex-shrink:0; }
-.queue-mini-btn{ width:18px; height:18px; border-radius:4px; background:transparent; border:none; color:var(--text-dim); display:flex; align-items:center; justify-content:center; }
-.queue-mini-btn:hover{ color:var(--accent-glow); }
+.queue-item-num{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); flex-shrink:0; }
+.queue-item-name{ flex:1; font-family:var(--font-mono); font-size:12px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.queue-item-btns{ display:flex; gap:4px; flex-shrink:0; }
+.queue-mini-btn{ width:24px; height:24px; border-radius:6px; background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim); display:flex; align-items:center; justify-content:center; }
+.queue-mini-btn:hover{ color:#fff; border-color:var(--accent); background:var(--accent-deep); }
 .queue-add-btn{ width:26px; height:26px; border-radius:6px; background:var(--panel); border:1px solid var(--border-strong); color:var(--text-dim); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .queue-add-btn:hover{ color:#fff; border-color:var(--accent); }
 .media-progress-track{ height:3px; background:rgba(255,255,255,0.07); border-radius:2px; margin-top:6px; overflow:hidden; }
 .media-progress-fill{ height:100%; width:0%; background:var(--grad-accent); }
 
+/* Global "now playing" mini-player — lives outside the Loops/Music
+   sections so it stays visible (and adjustable) no matter which tab
+   is active, and stays visible while paused, not just while sounding. */
+.global-now-playing{ position:fixed; left:0; right:0; bottom:0; z-index:70; display:flex; flex-direction:column; pointer-events:none; }
+.global-now-playing .now-playing-bar{ pointer-events:auto; margin:0; border-radius:0; border-width:1px 0 0 0; background:rgba(15,14,18,0.97); backdrop-filter:blur(14px); box-shadow:0 -10px 34px rgba(0,0,0,0.55); max-width:1320px; width:100%; margin:0 auto; }
 .now-playing-bar{ display:none; }
 .now-playing-bar.show{ display:flex; flex-direction:column; gap:8px; background:var(--panel-2); border:1px solid var(--border-strong); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
 .np-top-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.np-kind-tag{ font-family:var(--font-mono); font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--accent-glow); flex-shrink:0; }
 .np-title{ font-family:var(--font-display); font-weight:700; font-size:13px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .np-transport{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
 .np-btn{ width:30px; height:30px; border-radius:8px; background:var(--panel); border:1px solid var(--border-strong); color:var(--text-muted); display:flex; align-items:center; justify-content:center; }
@@ -654,7 +661,6 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
           <span class="loop-search-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></span>
           <input type="text" id="loop-search-input" placeholder="Search loops by name…">
         </div>
-        <div class="now-playing-bar" id="loop-now-playing"></div>
         <div class="media-layout">
           <div class="media-main"><div class="loop-list" id="loop-list"></div></div>
           <div class="media-queue-panel" id="loop-queue-panel"></div>
@@ -676,7 +682,6 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
           <span class="loop-search-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></span>
           <input type="text" id="music-search-input" placeholder="Search music by name…">
         </div>
-        <div class="now-playing-bar" id="music-now-playing"></div>
         <div class="media-layout">
           <div class="media-main"><div class="loop-list" id="music-list"></div></div>
           <div class="media-queue-panel" id="music-queue-panel"></div>
@@ -717,6 +722,11 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
     </section>
 
   </main>
+
+  <div class="global-now-playing" id="global-now-playing">
+    <div class="now-playing-bar" id="music-now-playing"></div>
+    <div class="now-playing-bar" id="loop-now-playing"></div>
+  </div>
 
   <div class="app-footer">JAPZ Worship Essentials — runs entirely in your browser</div>
 </div>
@@ -938,7 +948,9 @@ const ICON_PATHS = {
   refresh: '<path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.5 9a9 9 0 0114.8-3.4L23 10"></path><path d="M1 14l4.7 4.4A9 9 0 0020.5 15"></path>',
   skipback: '<path d="M19 20L9 12l10-8v16z"></path><path d="M5 19V5"></path>',
   skipforward: '<path d="M5 4l10 8-10 8V4z"></path><path d="M19 5v14"></path>',
-  pause: '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>'
+  pause: '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>',
+  chevronup: '<path d="M18 15l-6-6-6 6"></path>',
+  chevrondown: '<path d="M6 9l6 6 6-6"></path>'
 };
 function svgIcon(name, size){
   size = size || 14;
@@ -1101,7 +1113,7 @@ function makeEditablePad(prefix, i, defaultName){
     trimStart: 0, trimEnd: 0, gain: 1, fadeIn: 0, fadeOut: 0, pitch: 0, tempoRatio: 1,
     eq: DEFAULT_EQ(), comp: DEFAULT_COMP(),
     detectedBpm: null, detectedKey: null, analyzed: false,
-    loopEnabled: true, // used only by loop/music pads
+    loopEnabled: false, // used only by loop/music pads — off by default so a fresh upload doesn't auto-repeat
     isPlaying: false, loading: false, source: null, activeNodes: null, granularHandle: null, el: null, colorIndex: i % PALETTE.length
   };
 }
@@ -1469,6 +1481,10 @@ function preloadGithubSoundPads(){
   });
   refreshAllUI();
   return Promise.all(tasks);
+}
+
+function fileBaseName(name){
+  return String(name || '').replace(/\.[a-zA-Z0-9]{1,5}$/, '').trim() || String(name || '');
 }
 
 function openFilePicker(pad, onLoaded){
@@ -2773,6 +2789,7 @@ function buildMediaAddRow(kind){
   return el('button', { class: 'media-add-row', onClick: function(){
     const pad = cfg.makePad(state[cfg.arrayKey].length);
     openFilePicker(pad, function(){
+      pad.name = fileBaseName(pad.fileName);
       state[cfg.arrayKey].push(pad);
       renderMediaListUI(kind);
       scheduleMediaPadSave(kind, pad);
@@ -4229,7 +4246,7 @@ function restoreMediaList(kind){
       p.fadeIn = m.fadeIn || 0; p.fadeOut = m.fadeOut || 0; p.pitch = m.pitch || 0; p.tempoRatio = m.tempoRatio || 1;
       p.eq = m.eq || DEFAULT_EQ(); p.comp = m.comp || DEFAULT_COMP();
       p.detectedBpm = m.detectedBpm || null; p.detectedKey = m.detectedKey || null; p.analyzed = !!m.analyzed;
-      p.loopEnabled = m.loopEnabled != null ? !!m.loopEnabled : true;
+      p.loopEnabled = m.loopEnabled != null ? !!m.loopEnabled : false;
       p.colorIndex = (m.colorIndex != null ? m.colorIndex : i2 % PALETTE.length);
       return p;
     });
