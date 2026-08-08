@@ -1236,12 +1236,12 @@ function initAudio(){
    AUTO-ROUTED SOUND PAD LIBRARY
    The "Japz Pads" folder in the JAPZ-Worship-Essentials GitHub repo
    holds one WAV per chromatic key, named like "[A] - Sound Walls.wav".
-   On load we ask the GitHub API for that folder's file listing, pull
-   the bracketed key out of each filename, and remember its raw
-   download URL. When a Sound Pad is tapped and has nothing loaded
-   yet, we fetch straight from that URL instead of opening the file
-   picker — so pressing "A" automatically plays "[A] - Sound Walls.wav"
-   with no manual upload needed. Re-uploading a pad still overrides it.
+   Each pad's URL is known up front (see GITHUB_PAD_FILENAMES below),
+   so tapping a pad with nothing loaded yet fetches straight from that
+   URL and plays it immediately — no manual upload needed, and no
+   waiting on any network call before the map is ready. A background
+   GitHub API scan can still pick up newly added/renamed files later,
+   but nothing depends on it. Re-uploading a pad still overrides it.
 ============================================================ */
 const GITHUB_REPO_OWNER = 'japzresource';
 const GITHUB_REPO_NAME = 'JAPZ-Worship-Essentials';
@@ -1443,7 +1443,7 @@ function buildSoundPadCell(k){
     pad.buffer ? loopIcon : null,
     cornerIcon,
     el('div', { class: 'key-cell-label', text: k.label }),
-    el('div', { class: 'key-cell-sub', text: pad.loading ? 'Loading\u2026' : (pad.buffer ? pad.fileName : (pad.loadError ? '\u26A0 Load failed \u2014 tap to retry' : (pad.fileName ? '\u26A0 Re-upload' : 'Tap to load'))) })
+    el('div', { class: 'key-cell-sub', text: pad.loading ? 'Loading\u2026' : (pad.buffer ? pad.fileName : (pad.loadError ? '\u26A0 Load failed \u2014 tap to retry' : (pad.fileName ? '\u26A0 Re-upload' : 'Tap to play'))) })
   ]);
   pad.el = wrap;
   return wrap;
@@ -1462,7 +1462,7 @@ function onSoundPadClick(pad){
   if (!pad.buffer){
     if (githubPadManifestLoaded){
       const remote = githubPadUrlMap[normalizePadKeyToken(pad.category)];
-      if (remote) loadAudioFromUrl(remote.url, pad, remote.fileName, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
+      if (remote) loadAudioFromUrl(remote.url, pad, remote.fileName, function(){ scheduleSoundPadSave(pad.mode, pad.category); startSoundPad(pad); });
       else openFilePicker(pad, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
     } else {
       // Library listing hasn't finished loading yet (rare, right after page
