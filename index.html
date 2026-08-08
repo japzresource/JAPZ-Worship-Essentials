@@ -297,8 +297,8 @@ body[data-light-style="pulse"] .loop-row.playing{ animation:padpulse 0.9s ease-i
 .media-layout{ display:flex; gap:16px; align-items:flex-start; }
 .media-main{ flex:1; min-width:0; }
 .media-queue-panel{
-  flex:0 0 320px; background:var(--panel-2); border:1px solid var(--border-strong); border-radius:12px; padding:16px;
-  display:flex; flex-direction:column; gap:12px;
+  flex:0 0 400px; background:var(--panel-2); border:1px solid var(--border-strong); border-radius:12px; padding:18px;
+  display:flex; flex-direction:column; gap:12px; max-height:calc(100vh - 220px); min-height:520px;
 }
 .media-queue-title{ font-family:var(--font-display); font-weight:700; font-size:14px; letter-spacing:0.05em; text-transform:uppercase; color:var(--accent-glow); }
 .media-queue-transition{ display:flex; flex-direction:column; gap:8px; padding-bottom:10px; border-bottom:1px solid var(--border); }
@@ -309,15 +309,18 @@ body[data-light-style="pulse"] .loop-row.playing{ animation:padpulse 0.9s ease-i
 .transition-duration-row input{ width:52px; padding:5px 6px; border-radius:5px; background:var(--panel); border:1px solid var(--border-strong); color:var(--text); font-family:var(--font-mono); font-size:10.5px; }
 .queue-play-btn{ display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border-radius:7px; background:var(--grad-accent); border:none; color:#fff; font-family:var(--font-mono); font-size:11px; letter-spacing:0.05em; }
 .queue-play-btn.stop-mode{ background:var(--panel); border:1px solid var(--border-strong); color:var(--text); }
-.media-queue-list{ display:flex; flex-direction:column; gap:8px; max-height:480px; overflow-y:auto; }
+.media-queue-list{ display:flex; flex-direction:column; gap:8px; flex:1; min-height:280px; overflow-y:auto; }
 .queue-empty-note{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); text-align:center; padding:16px 6px; }
-.queue-item{ display:flex; align-items:center; gap:8px; padding:10px 11px; border-radius:8px; background:var(--panel); border:1px solid var(--border); }
+.queue-item{ display:flex; align-items:center; gap:9px; padding:11px 12px; border-radius:8px; background:var(--panel); border:1px solid var(--border); }
 .queue-item.current{ border-color:var(--accent); box-shadow:0 0 8px rgba(216,31,46,0.3); }
 .queue-item-num{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); flex-shrink:0; }
-.queue-item-name{ flex:1; font-family:var(--font-mono); font-size:12px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.queue-item-btns{ display:flex; gap:4px; flex-shrink:0; }
-.queue-mini-btn{ width:24px; height:24px; border-radius:6px; background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim); display:flex; align-items:center; justify-content:center; }
+.queue-item-name{ flex:1; font-family:var(--font-mono); font-size:12.5px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.queue-item.current .queue-item-name{ color:var(--text); }
+.queue-item-btns{ display:flex; gap:5px; flex-shrink:0; }
+.queue-mini-btn{ width:26px; height:26px; border-radius:6px; background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim); display:flex; align-items:center; justify-content:center; }
 .queue-mini-btn:hover{ color:#fff; border-color:var(--accent); background:var(--accent-deep); }
+.queue-mini-btn:disabled{ opacity:0.35; pointer-events:none; }
+.queue-mini-btn.remove-btn:hover{ border-color:#ff4d4d; background:rgba(255,77,77,0.18); }
 .queue-add-btn{ width:26px; height:26px; border-radius:6px; background:var(--panel); border:1px solid var(--border-strong); color:var(--text-dim); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .queue-add-btn:hover{ color:#fff; border-color:var(--accent); }
 .media-progress-track{ height:3px; background:rgba(255,255,255,0.07); border-radius:2px; margin-top:6px; overflow:hidden; }
@@ -839,6 +842,29 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         <div class="settings-note" style="margin-top:8px;">Turn this on per channel to automatically even out loudness between different uploaded files on that channel — handy when one MP3 is mastered much louder than another.</div>
       </div>
       <div class="settings-section">
+        <div class="settings-section-title">Sound Pads — Key Transition <span style="font-weight:400; text-transform:none; letter-spacing:0;">(what happens when you tap a different key)</span></div>
+        <div class="light-style-row" id="sp-transition-mode-row" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+        <div class="settings-note" id="sp-transition-mode-desc" style="margin-top:8px;"></div>
+        <div class="transition-duration-row" style="margin-top:12px;">
+          <span>Transition length</span>
+          <input type="number" id="sp-transition-duration" min="0.5" max="15" step="0.5">
+          <span>s</span>
+        </div>
+        <div class="transition-duration-row" style="margin-top:8px;">
+          <span>Internal loop-point crossfade</span>
+          <input type="number" id="sp-transition-loopxfade" min="0.2" max="6" step="0.1">
+          <span>s</span>
+        </div>
+        <div class="settings-note" style="margin-top:6px;">How each key's own audio loops seamlessly under itself, independent of key-change transitions above.</div>
+        <div class="light-style-row" id="sp-duck-row" style="display:flex; gap:8px; margin-top:14px;"></div>
+        <div id="sp-duck-amount-wrap" class="transition-duration-row" style="margin-top:8px;">
+          <span>Duck Loops/Music to</span>
+          <input type="number" id="sp-duck-amount" min="5" max="95" step="5">
+          <span>%</span>
+        </div>
+        <div class="settings-note" style="margin-top:6px;">Briefly lowers Loops &amp; Music while a key transition is happening, so the change reads clearly instead of getting buried under the backing track — then eases them back to normal.</div>
+      </div>
+      <div class="settings-section">
         <div class="settings-section-title">Saved Data</div>
         <div class="settings-note" id="storage-status-note">Checking storage availability…</div>
         <button class="settings-danger-btn" id="settings-clear-data-btn" style="width:100%; margin-top:10px;">Clear All Saved Sounds &amp; Settings</button>
@@ -1092,7 +1118,14 @@ const settings = {
   accentGlow: '#d81f2e',
   flash: '#b3121f',
   lightStyle: 'flash',
-  audioBalance: { soundpad: false, soundboard: false, loop: false, music: false }
+  audioBalance: { soundpad: false, soundboard: false, loop: false, music: false },
+  spTransition: {
+    mode: 'crossfade',   // 'crossfade' (overlap) | 'wait' (fade out fully first, then start) | 'cut' (instant)
+    duration: 5,          // seconds — key-change fade length (crossfade & wait modes)
+    loopXfade: 2.5,        // seconds — a pad's own internal loop-point crossfade
+    duckOthers: false,     // briefly duck Loops + Music while a key transition happens
+    duckAmount: 40          // % — how far to duck (40 = duck down to 40% volume)
+  }
 };
 
 /* ============================================================
@@ -1170,9 +1203,14 @@ function buildChannel(name, opts){
   const input = ctx.createGain(); input.gain.value = 1;
   const trim = ctx.createGain(); trim.gain.value = 1;
   input.connect(trim);
+  // Dedicated automation-only gain stage (not exposed as a mixer knob) —
+  // used to briefly "duck" this channel out of the way during a Sound Pad
+  // key transition, without touching the user's actual Trim/Gain settings.
+  const duck = ctx.createGain(); duck.gain.value = 1;
+  trim.connect(duck);
 
-  const chain = { input:input, trim:trim, name:name, muted:false, lastFaderValue:1, reverbSize:'plate' };
-  let node = trim;
+  const chain = { input:input, trim:trim, duck:duck, name:name, muted:false, lastFaderValue:1, reverbSize:'plate' };
+  let node = duck;
 
   if (full){
     const eqFreqs = [60, 150, 400, 1000, 2500, 6000, 10000, 16000];
@@ -1629,14 +1667,35 @@ function onSoundPadClick(pad){
    fade duration as the gain ramp it mirrors, using a CSS custom
    property so the transition timing matches exactly.
 ============================================================ */
-const KEY_CHANGE_FADE = 5;      // seconds — crossfade (audio + visual) when switching to a different key
-const LOOP_XFADE_MAX = 2.5;     // seconds — crossfade at a pad's own internal loop point
 const QUICK_FADE = 0.08;        // seconds — user explicitly stopping this exact key
 let activeSoundPad = null;      // the pad currently considered "the" sounding key
+let pendingKeySwitchTimer = null; // used only by "Wait for fade-out" transition mode
 
 function clearPadTimers(pad){
   if (pad._loopTimer){ clearTimeout(pad._loopTimer); pad._loopTimer = null; }
   if (pad._stopTimer){ clearTimeout(pad._stopTimer); pad._stopTimer = null; }
+}
+
+// A channel's own dedicated "duck" gain stage — briefly pulled down and
+// eased back up, entirely separate from the user's Trim/Gain knobs. Used
+// so Loops + Music can automatically make room for a Sound Pad key change.
+function duckChannel(busKey, downSeconds, holdSeconds){
+  const ch = state.channels[busKey];
+  if (!ch || !ch.duck || !ctx) return;
+  const now = ctx.currentTime;
+  const floor = clamp((settings.spTransition.duckAmount || 40) / 100, 0.05, 1);
+  try {
+    ch.duck.gain.cancelScheduledValues(now);
+    ch.duck.gain.setValueAtTime(ch.duck.gain.value || 1, now);
+    ch.duck.gain.linearRampToValueAtTime(floor, now + downSeconds * 0.5);
+    ch.duck.gain.setValueAtTime(floor, now + downSeconds * 0.5 + holdSeconds);
+    ch.duck.gain.linearRampToValueAtTime(1, now + downSeconds * 0.5 + holdSeconds + downSeconds * 0.5);
+  } catch(e){}
+}
+function duckOtherBusesForKeyChange(fadeSeconds){
+  if (!settings.spTransition.duckOthers) return;
+  duckChannel('loop', Math.min(fadeSeconds, 1.2), Math.max(0, fadeSeconds - Math.min(fadeSeconds, 1.2) * 2));
+  duckChannel('music', Math.min(fadeSeconds, 1.2), Math.max(0, fadeSeconds - Math.min(fadeSeconds, 1.2) * 2));
 }
 
 // Starts one "generation" (playthrough) of pad.buffer, fading its gain in
@@ -1676,7 +1735,7 @@ function playSoundPadGeneration(pad, fadeSeconds){
     }
   };
 
-  const loopXfade = Math.max(0.05, Math.min(LOOP_XFADE_MAX, dur / 3));
+  const loopXfade = Math.max(0.05, Math.min(settings.spTransition.loopXfade, dur / 3));
   const fadeOutStart = Math.max(now + 0.02, now + dur - loopXfade);
   gainNode.gain.setValueAtTime(1, fadeOutStart);
   gainNode.gain.exponentialRampToValueAtTime(0.0001, fadeOutStart + loopXfade);
@@ -1694,14 +1753,53 @@ function playSoundPadGeneration(pad, fadeSeconds){
 
 function startSoundPad(pad){
   ensureAudio();
-  const switchingKeys = activeSoundPad && activeSoundPad !== pad && activeSoundPad.isPlaying;
-  if (switchingKeys) fadeOutAndStopSoundPad(activeSoundPad, KEY_CHANGE_FADE);
-  clearPadTimers(pad);
-  const fadeSeconds = switchingKeys ? KEY_CHANGE_FADE : 0.04;
-  playSoundPadGeneration(pad, fadeSeconds);
-  pad.isPlaying = true;
-  activeSoundPad = pad;
-  updateSoundPadVisual(pad, fadeSeconds);
+  if (pendingKeySwitchTimer){ clearTimeout(pendingKeySwitchTimer); pendingKeySwitchTimer = null; }
+  const outgoing = (activeSoundPad && activeSoundPad !== pad && activeSoundPad.isPlaying) ? activeSoundPad : null;
+  const tcfg = settings.spTransition;
+  const fadeSeconds = Math.max(0.2, tcfg.duration || 5);
+
+  if (!outgoing){
+    // Nothing else sounding — just start.
+    clearPadTimers(pad);
+    playSoundPadGeneration(pad, 0.04);
+    pad.isPlaying = true;
+    activeSoundPad = pad;
+    updateSoundPadVisual(pad, 0.04);
+    return;
+  }
+
+  if (tcfg.mode === 'cut'){
+    // Instant cut — outgoing key silenced immediately, new key starts dry.
+    fadeOutAndStopSoundPad(outgoing, QUICK_FADE);
+    clearPadTimers(pad);
+    playSoundPadGeneration(pad, 0.04);
+    pad.isPlaying = true;
+    activeSoundPad = pad;
+    updateSoundPadVisual(pad, 0.04);
+  } else if (tcfg.mode === 'wait'){
+    // Sequential — let the outgoing key fade all the way out first, and
+    // only start the new key once that fade has actually finished.
+    fadeOutAndStopSoundPad(outgoing, fadeSeconds);
+    activeSoundPad = null;
+    pendingKeySwitchTimer = setTimeout(function(){
+      pendingKeySwitchTimer = null;
+      clearPadTimers(pad);
+      playSoundPadGeneration(pad, 0.15);
+      pad.isPlaying = true;
+      activeSoundPad = pad;
+      updateSoundPadVisual(pad, 0.15);
+    }, fadeSeconds * 1000 + 30);
+  } else {
+    // Crossfade (default) — the outgoing key's fade-out and the new key's
+    // fade-in run at the same time, so there is never a silent gap.
+    fadeOutAndStopSoundPad(outgoing, fadeSeconds);
+    clearPadTimers(pad);
+    playSoundPadGeneration(pad, fadeSeconds);
+    pad.isPlaying = true;
+    activeSoundPad = pad;
+    updateSoundPadVisual(pad, fadeSeconds);
+    duckOtherBusesForKeyChange(fadeSeconds);
+  }
 }
 
 // Fades a pad's current generation out over fadeSeconds, then stops it once
@@ -1730,6 +1828,7 @@ function fadeOutAndStopSoundPad(pad, fadeSeconds){
 function stopSoundPad(pad){
   // Quick fade (not the full 5s) — this is the user explicitly silencing
   // this key, not switching to another one.
+  if (pendingKeySwitchTimer){ clearTimeout(pendingKeySwitchTimer); pendingKeySwitchTimer = null; }
   fadeOutAndStopSoundPad(pad, QUICK_FADE);
 }
 
@@ -2715,11 +2814,13 @@ function renderQueuePanel(kind){
   q.forEach(function(padId, i){
     const pad = state[cfg.arrayKey].find(function(p){ return p.id === padId; });
     if (!pad) return;
-    const upBtn = el('button', { class: 'queue-mini-btn', html: svgIcon('download', 9), title: 'Move up', style: 'transform:rotate(180deg);' });
+    const upBtn = el('button', { class: 'queue-mini-btn', html: svgIcon('chevronup', 13), title: 'Move up' });
+    if (i === 0) upBtn.disabled = true;
     upBtn.addEventListener('click', function(){ moveQueueItem(kind, i, -1); });
-    const downBtn = el('button', { class: 'queue-mini-btn', html: svgIcon('download', 9), title: 'Move down' });
+    const downBtn = el('button', { class: 'queue-mini-btn', html: svgIcon('chevrondown', 13), title: 'Move down' });
+    if (i === q.length - 1) downBtn.disabled = true;
     downBtn.addEventListener('click', function(){ moveQueueItem(kind, i, 1); });
-    const removeBtn = el('button', { class: 'queue-mini-btn', html: svgIcon('close', 9), title: 'Remove' });
+    const removeBtn = el('button', { class: 'queue-mini-btn remove-btn', html: svgIcon('trash', 12), title: 'Remove' });
     removeBtn.addEventListener('click', function(){ removeFromQueue(kind, padId); });
     listEl.appendChild(el('div', { class: 'queue-item' + (queuePlaying[kind] && queueIndex[kind] === i ? ' current' : '') }, [
       el('span', { class: 'queue-item-num', text: (i + 1) + '.' }),
@@ -2736,9 +2837,14 @@ function playQueueFrom(kind, index){
   if (!pad || !pad.buffer){ playQueueFrom(kind, index + 1); return; }
   queuePlaying[kind] = true;
   queueIndex[kind] = index;
-  stopAllOtherMediaPads(kind, pad);
   const tcfg = queueTransition[kind];
   const fadeSecs = tcfg.type === 'fade' ? Math.max(0.1, tcfg.duration) : 0;
+  // Cut mode: kill whatever else is playing right away, like before.
+  // Fade mode: leave the outgoing track alone — it already has its own
+  // fade-out ramp scheduled (below, via fadeOutOverride from the PREVIOUS
+  // call) and will clean itself up via onended once that ramp finishes.
+  // Stopping it here would cut it instantly and defeat the crossfade.
+  if (fadeSecs <= 0) stopAllOtherMediaPads(kind, pad);
   const totalDur = triggerEditablePad(pad, cfg.busKey, false, {
     fadeOutOverride: fadeSecs,
     onEnd: function(){ if (queuePlaying[kind] && queueIndex[kind] === index) playQueueFrom(kind, index + 1); }
@@ -3116,6 +3222,7 @@ function renderSettingsModal(){
   });
   renderShortcutList();
   renderAudioBalanceRow();
+  renderSPTransitionSection();
   const note = document.getElementById('storage-status-note');
   note.textContent = hasStorage
     ? 'Your sounds, edits, presets and settings are saved automatically in this workspace and will be restored next time you log in. Very large audio files may not be saved due to storage limits — you\u2019ll see a small note on any pad that needs re-uploading.'
@@ -3172,6 +3279,50 @@ function renderAudioBalanceRow(){
       }
     }));
   });
+}
+
+const SP_TRANSITION_MODES = [
+  { id: 'crossfade', label: 'Crossfade', desc: 'The old key fades out while the new key fades in at the same time — no silent gap, ever.' },
+  { id: 'wait', label: 'Wait for fade-out', desc: 'The old key fades all the way out first, and only then does the new key start. There will be a brief pause between keys.' },
+  { id: 'cut', label: 'Instant cut', desc: 'The old key stops immediately and the new key starts immediately — no fade either way.' }
+];
+function renderSPTransitionSection(){
+  const modeRow = document.getElementById('sp-transition-mode-row');
+  if (!modeRow) return;
+  modeRow.innerHTML = '';
+  const tcfg = settings.spTransition;
+  SP_TRANSITION_MODES.forEach(function(opt){
+    modeRow.appendChild(el('button', {
+      class: 'light-style-btn' + (tcfg.mode === opt.id ? ' active' : ''), text: opt.label, title: opt.desc,
+      onClick: function(){ tcfg.mode = opt.id; saveSettings(); renderSPTransitionSection(); }
+    }));
+  });
+  const active = SP_TRANSITION_MODES.find(function(o){ return o.id === tcfg.mode; }) || SP_TRANSITION_MODES[0];
+  document.getElementById('sp-transition-mode-desc').textContent = active.desc;
+
+  const durInput = document.getElementById('sp-transition-duration');
+  durInput.value = tcfg.duration;
+  durInput.oninput = function(){ tcfg.duration = clamp(Number(durInput.value) || 5, 0.5, 15); saveSettings(); };
+
+  const loopXInput = document.getElementById('sp-transition-loopxfade');
+  loopXInput.value = tcfg.loopXfade;
+  loopXInput.oninput = function(){ tcfg.loopXfade = clamp(Number(loopXInput.value) || 2.5, 0.2, 6); saveSettings(); };
+
+  const duckRow = document.getElementById('sp-duck-row');
+  duckRow.innerHTML = '';
+  duckRow.appendChild(el('button', {
+    class: 'balance-toggle-btn' + (!tcfg.duckOthers ? ' active' : ''), text: 'Off',
+    onClick: function(){ tcfg.duckOthers = false; saveSettings(); renderSPTransitionSection(); }
+  }));
+  duckRow.appendChild(el('button', {
+    class: 'balance-toggle-btn' + (tcfg.duckOthers ? ' active' : ''), text: 'On',
+    onClick: function(){ tcfg.duckOthers = true; saveSettings(); renderSPTransitionSection(); }
+  }));
+  const duckAmountWrap = document.getElementById('sp-duck-amount-wrap');
+  duckAmountWrap.style.display = tcfg.duckOthers ? 'flex' : 'none';
+  const duckAmountInput = document.getElementById('sp-duck-amount');
+  duckAmountInput.value = tcfg.duckAmount;
+  duckAmountInput.oninput = function(){ tcfg.duckAmount = clamp(Number(duckAmountInput.value) || 40, 5, 95); saveSettings(); };
 }
 
 document.getElementById('accent-custom-picker').addEventListener('input', function(e){
@@ -4185,6 +4336,7 @@ function restoreSettings(){
       if (s.flash) applyFlash(s.flash);
       if (s.lightStyle) applyLightStyle(s.lightStyle);
       if (s.audioBalance) settings.audioBalance = Object.assign({ soundpad:false, soundboard:false, loop:false, music:false }, s.audioBalance);
+      if (s.spTransition) Object.assign(settings.spTransition, s.spTransition);
       if (Array.isArray(s.padShortcuts) && s.padShortcuts.length === DRUM_PAD_COUNT) padShortcuts = s.padShortcuts.slice();
       if (s.queueTransition){
         ['loop','music'].forEach(function(k){
