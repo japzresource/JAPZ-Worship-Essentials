@@ -3502,15 +3502,26 @@ document.getElementById('settings-clear-data-btn').addEventListener('click', fun
    MIX SECTION
 ============================================================ */
 const FADER_SCALE_TICKS = [
-  { db:10, pct:2 }, { db:5, pct:10 }, { db:0, pct:20 }, { db:-5, pct:29 },
-  { db:-10, pct:39 }, { db:-20, pct:55 }, { db:-30, pct:68 }, { db:-40, pct:79 },
-  { db:-50, pct:88 }, { db:-60, pct:95 }
+  { db:10 }, { db:5 }, { db:0 }, { db:-5 },
+  { db:-10 }, { db:-20 }, { db:-30 }, { db:-40 },
+  { db:-50 }, { db:-60 }
 ];
+// The meter's calibrated range: +10dBFS (top) down to -60dBFS (bottom),
+// LINEAR in dB — equal dB steps get equal pixel spacing. This one formula
+// is now the single source of truth for both the printed tick positions
+// and the meter fill itself, so "0dB" printed on the scale is mathematically
+// guaranteed to be exactly where the meter reads 0dB, not an approximation.
+const METER_DB_MAX = 10;
+const METER_DB_MIN = -60;
+function dbToMeterPct(db){
+  const pct = ((METER_DB_MAX - db) / (METER_DB_MAX - METER_DB_MIN)) * 100;
+  return clamp(pct, 0, 100);
+}
 function buildFaderScale(ch){
   const wrap = el('div', { class: 'fader-scale-wrap' });
   const labels = el('div', { class: 'fader-scale-labels' });
   FADER_SCALE_TICKS.forEach(function(t){
-    labels.appendChild(el('div', { class: 'fader-scale-tick', style: 'top:' + t.pct + '%;', text: (t.db > 0 ? '+' : '') + t.db }));
+    labels.appendChild(el('div', { class: 'fader-scale-tick', style: 'top:' + dbToMeterPct(t.db) + '%;', text: (t.db > 0 ? '+' : '') + t.db }));
   });
   const mask = el('div', { class: 'fader-meter-mask' });
   const meter = el('div', { class: 'fader-meter' }, [mask]);
@@ -4262,6 +4273,14 @@ function drawMiniEqCurve(canvas, ch){
   c2d.lineWidth = 1;
   c2d.beginPath(); c2d.moveTo(0, chh / 2); c2d.lineTo(cw, chh / 2); c2d.stroke();
 }
+// Converts a true dBFS reading into the meter's 0..1 fill level, using the
+// exact same linear dB->position formula (dbToMeterPct, above) as the
+// printed scale ticks — so the meter and the numbers next to it are always
+// in agreement at every dB value, not just approximately close at a
+// handful of sampled points.
+function dbToMeterLevel(db){
+  return 1 - (dbToMeterPct(db) / 100);
+}
 function computeChannelLevel(analyser){
   if (!analyser) return 0;
   if (!analyser._levelBuf || analyser._levelBuf.length !== analyser.fftSize) analyser._levelBuf = new Uint8Array(analyser.fftSize);
@@ -4270,7 +4289,8 @@ function computeChannelLevel(analyser){
   let sumSq = 0;
   for (let i = 0; i < data.length; i++){ const v = (data[i] - 128) / 128; sumSq += v * v; }
   const rms = Math.sqrt(sumSq / data.length);
-  const instant = clamp(rms * 4.5, 0, 1);
+  const db = rms > 0.00003 ? 20 * Math.log10(rms) : -90; // true dBFS; floor for digital silence
+  const instant = dbToMeterLevel(db);
   // Ballistics: a real level meter rises quickly on a transient (attack)
   // and falls back gradually afterwards (release) — it does NOT just
   // redraw to a brand new instantaneous RMS reading every single 60fps
