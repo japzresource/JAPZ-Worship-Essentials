@@ -1821,9 +1821,9 @@ function fadeOutAndStopSoundPad(pad, fadeSeconds, atTime){
   if (gainNode && ctx){
     const now = atTime != null ? atTime : ctx.currentTime;
     try {
+      const cur = gainNode.gain.value || 1; // read BEFORE cancelling — reading after cancelScheduledValues() can return a stale value on some engines if a ramp was still in flight
       gainNode.gain.cancelScheduledValues(now);
-      const cur = gainNode.gain.value || 1;
-      gainNode.gain.setValueAtTime(cur, now);
+      gainNode.gain.setValueAtTime(cur > 0.0001 ? cur : 1, now);
       gainNode.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(fadeSeconds, 0.05));
     } catch(e){}
   }
@@ -2209,6 +2209,42 @@ function triggerEditablePad(pad, busKey, loop, opts){
 function stopEditablePad(pad){
   if (pad.source){ try { pad.source.onended = null; pad.source.stop(); } catch(e){} pad.source = null; }
   if (pad.granularHandle){ try { pad.granularHandle.stop(); } catch(e){} pad.granularHandle = null; }
+  pad.activeNodes = null;
+  pad.isPlaying = false;
+  refreshPlayVisual(pad);
+}
+// The user is deliberately turning off the exact loop/track they're
+// currently listening to (tapped it again while it's playing) — so unlike
+// stopEditablePad() above (a hard/instant reset used for retriggering,
+// deleting, or switching to a different pad), this lets it wind down
+// gracefully instead of cutting off mid-sound. Mirrors fadeOutAndStopSoundPad().
+const EDITABLE_STOP_FADE = 1.4; // seconds — fade when tapping a playing loop/track off
+function fadeOutAndStopEditablePad(pad, fadeSeconds){
+  fadeSeconds = Math.max(fadeSeconds || EDITABLE_STOP_FADE, 0.05);
+  const src = pad.source;
+  const granularHandle = pad.granularHandle;
+  const envGain = pad.activeNodes && pad.activeNodes.env ? pad.activeNodes.env.gain : null;
+
+  if (envGain && ctx){
+    const now = ctx.currentTime;
+    try {
+      const cur = envGain.value; // read BEFORE cancelling — see note on fadeOutAndStopSoundPad
+      envGain.cancelScheduledValues(now);
+      envGain.setValueAtTime(cur > 0.0001 ? cur : 0.0001, now);
+      envGain.exponentialRampToValueAtTime(0.0001, now + fadeSeconds);
+    } catch(e){}
+  }
+
+  const stopDelayMs = fadeSeconds * 1000 + 60;
+  if (src){
+    src.onended = null;
+    setTimeout(function(){ try{ src.stop(); }catch(e){} }, stopDelayMs);
+  }
+  if (granularHandle){
+    setTimeout(function(){ try{ granularHandle.stop(); }catch(e){} }, stopDelayMs);
+  }
+  pad.source = null;
+  pad.granularHandle = null;
   pad.activeNodes = null;
   pad.isPlaying = false;
   refreshPlayVisual(pad);
@@ -2670,13 +2706,13 @@ function buildNowPlayingBar(kind){
   nextBtn.addEventListener('click', function(){ queueStepRelative(kind, 1); });
   playPauseBtn.addEventListener('click', function(){
     const pad = findPlayingMediaPad(kind);
-    if (pad){ stopEditablePad(pad); if (queuePlaying[kind]) stopQueueForKind(kind); }
+    if (pad){ fadeOutAndStopEditablePad(pad); if (queuePlaying[kind]) stopQueueForKind(kind); }
     renderMediaListUI(kind);
     updateNowPlayingBar(kind);
   });
   stopBtn.addEventListener('click', function(){
     const pad = findPlayingMediaPad(kind);
-    if (pad) stopEditablePad(pad);
+    if (pad) fadeOutAndStopEditablePad(pad);
     if (queuePlaying[kind]) stopQueueForKind(kind);
     renderMediaListUI(kind);
     updateNowPlayingBar(kind);
@@ -2967,7 +3003,7 @@ function buildMediaRowEl(pad, kind){
     if (pad.loading) return;
     if (!pad.buffer){ openFilePicker(pad, function(){ scheduleMediaPadSave(kind, pad); }); return; }
     if (mediaEditModeOn[kind]){ openPadEditor(pad, kind); return; }
-    if (pad.isPlaying){ stopEditablePad(pad); }
+    if (pad.isPlaying){ fadeOutAndStopEditablePad(pad); }
     else {
       stopAllOtherMediaPads(kind, pad);
       triggerEditablePad(pad, cfg.busKey, pad.loopEnabled);
