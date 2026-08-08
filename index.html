@@ -177,21 +177,15 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 .toolbar-icon-btn:hover{ color:#fff; border-color:var(--accent); }
 
 /* ============================= PIANO KEY CATEGORY SELECTOR ============================= */
-.piano-wrap{ margin-bottom:18px; max-width:420px; margin-left:auto; margin-right:auto; }
+.piano-wrap{ margin-bottom:18px; max-width:520px; margin-left:auto; margin-right:auto; }
 .mode-toggle{ display:flex; justify-content:center; margin-bottom:16px; }
 .mode-toggle-track{ display:flex; background:var(--panel); border:1px solid var(--border-strong); border-radius:999px; padding:4px; gap:4px; }
 .mode-toggle-btn{ padding:8px 22px; border-radius:999px; background:transparent; border:none; color:var(--text-dim); font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.06em; }
 .mode-toggle-btn.active{ background:var(--grad-accent); color:#fff; box-shadow:0 4px 14px rgba(179,18,31,0.4); }
 .filter-toggle-label{ display:block; text-align:center; font-family:var(--font-mono); font-size:10px; letter-spacing:0.3em; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; }
-.sp-filter-search-wrap{ max-width:320px; margin:0 auto 16px; }
-.sp-filter-search{
-  width:100%; box-sizing:border-box; padding:10px 14px; border-radius:999px; background:var(--panel);
-  border:1px solid var(--border-strong); color:var(--text); font-family:var(--font-mono); font-size:12px;
-  letter-spacing:0.04em; text-align:center;
-}
-.sp-filter-search:focus{ outline:none; border-color:rgba(216,31,46,0.6); }
-.sp-filter-search::placeholder{ color:var(--text-dim); }
-.sp-filter-empty{ grid-column:1/-1; text-align:center; font-family:var(--font-mono); font-size:12px; color:var(--text-dim); padding:24px 0; }
+.sp-filter-panel{ max-width:520px; margin:0 auto; text-align:left; background:var(--panel); border:1px solid var(--border-strong); border-radius:14px; padding:18px 20px; }
+.sp-filter-panel .settings-section-title{ margin-bottom:12px; }
+.sp-filter-panel .transition-duration-row{ flex-wrap:wrap; }
 .key-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; max-width:520px; margin:0 auto; }
 .key-cell{
   position:relative; aspect-ratio:1/1; border-radius:12px; background:var(--card); border:2px solid var(--border-strong);
@@ -636,6 +630,35 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
             <div class="mode-toggle-track sp-filter-track" id="sp-filter-row"></div>
           </div>
           <div class="key-grid" id="sp-piano"></div>
+          <div class="sp-filter-panel" id="sp-filter-panel" style="display:none;">
+            <div class="settings-section-title">Key Transition <span style="font-weight:400; text-transform:none; letter-spacing:0;">(what happens when you tap a different key)</span></div>
+            <div class="light-style-row" id="sp-transition-mode-row" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+            <div class="settings-note" id="sp-transition-mode-desc" style="margin-top:8px;"></div>
+            <div class="transition-duration-row" style="margin-top:12px;">
+              <span>Transition length</span>
+              <input type="number" id="sp-transition-duration" min="0.5" max="15" step="0.5">
+              <span>s</span>
+            </div>
+            <div class="transition-duration-row" style="margin-top:8px;">
+              <span>Internal loop-point crossfade</span>
+              <input type="number" id="sp-transition-loopxfade" min="0.2" max="6" step="0.1">
+              <span>s</span>
+            </div>
+            <div class="settings-note" style="margin-top:6px;">How each key's own audio loops seamlessly under itself, independent of key-change transitions above.</div>
+            <div class="transition-duration-row" style="margin-top:8px;">
+              <span>Turn-off fade (tap same key again)</span>
+              <input type="number" id="sp-transition-stopfade" min="0.5" max="30" step="0.5">
+              <span>s</span>
+            </div>
+            <div class="settings-note" style="margin-top:6px;">How long a key takes to fade out when you tap that same key again to silence it — a slow wind-down instead of a hard stop.</div>
+            <div class="light-style-row" id="sp-duck-row" style="display:flex; gap:8px; margin-top:14px;"></div>
+            <div id="sp-duck-amount-wrap" class="transition-duration-row" style="margin-top:8px;">
+              <span>Duck Loops/Music to</span>
+              <input type="number" id="sp-duck-amount" min="5" max="95" step="5">
+              <span>%</span>
+            </div>
+            <div class="settings-note" style="margin-top:6px;">Briefly lowers Loops &amp; Music while a key transition is happening, so the change reads clearly instead of getting buried under the backing track — then eases them back to normal.</div>
+          </div>
         </div>
       </div>
     </section>
@@ -848,35 +871,6 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         <div class="settings-section-title">Audio Balance <span style="font-weight:400; text-transform:none; letter-spacing:0;">(auto-level so uploads don't jump in volume)</span></div>
         <div class="swatch-row" id="audio-balance-row"></div>
         <div class="settings-note" style="margin-top:8px;">Turn this on per channel to automatically even out loudness between different uploaded files on that channel — handy when one MP3 is mastered much louder than another.</div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">Sound Pads — Key Transition <span style="font-weight:400; text-transform:none; letter-spacing:0;">(what happens when you tap a different key)</span></div>
-        <div class="light-style-row" id="sp-transition-mode-row" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
-        <div class="settings-note" id="sp-transition-mode-desc" style="margin-top:8px;"></div>
-        <div class="transition-duration-row" style="margin-top:12px;">
-          <span>Transition length</span>
-          <input type="number" id="sp-transition-duration" min="0.5" max="15" step="0.5">
-          <span>s</span>
-        </div>
-        <div class="transition-duration-row" style="margin-top:8px;">
-          <span>Internal loop-point crossfade</span>
-          <input type="number" id="sp-transition-loopxfade" min="0.2" max="6" step="0.1">
-          <span>s</span>
-        </div>
-        <div class="settings-note" style="margin-top:6px;">How each key's own audio loops seamlessly under itself, independent of key-change transitions above.</div>
-        <div class="transition-duration-row" style="margin-top:8px;">
-          <span>Turn-off fade (tap same key again)</span>
-          <input type="number" id="sp-transition-stopfade" min="0.5" max="30" step="0.5">
-          <span>s</span>
-        </div>
-        <div class="settings-note" style="margin-top:6px;">How long a key takes to fade out when you tap that same key again to silence it — a slow wind-down instead of a hard stop.</div>
-        <div class="light-style-row" id="sp-duck-row" style="display:flex; gap:8px; margin-top:14px;"></div>
-        <div id="sp-duck-amount-wrap" class="transition-duration-row" style="margin-top:8px;">
-          <span>Duck Loops/Music to</span>
-          <input type="number" id="sp-duck-amount" min="5" max="95" step="5">
-          <span>%</span>
-        </div>
-        <div class="settings-note" style="margin-top:6px;">Briefly lowers Loops &amp; Music while a key transition is happening, so the change reads clearly instead of getting buried under the backing track — then eases them back to normal.</div>
       </div>
       <div class="settings-section">
         <div class="settings-section-title">Saved Data</div>
@@ -1585,12 +1579,15 @@ function refreshAllUI(){
 }
 
 /* ============================================================
-   SOUND PADS — each of the 12 chromatic keys (x Major/Minor) is
-   itself a single playable pad: tap empty to upload, tap loaded
-   to play / stop. No extra sub-pad layer.
+   SOUND PADS — each of the 12 chromatic keys is itself a single
+   playable pad: tap empty to upload, tap loaded to play / stop.
+   No extra sub-pad layer.
+   Two tabs sit above the grid:
+     "Keys"   — the chromatic pad grid (default view)
+     "Filter" — the key-transition settings (fade/crossfade timing,
+                ducking) that shape how one key hands off to the next
 ============================================================ */
-let activeSPView = 'keys'; // 'keys' (full chromatic grid) | 'filter' (search box narrows the grid)
-let spFilterQuery = '';
+let activeSPView = 'keys'; // 'keys' (pad grid) | 'filter' (transition settings)
 
 function renderSoundPadsUI(){
   renderSPViewToggle();
@@ -1599,17 +1596,9 @@ function renderSoundPadsUI(){
 function renderSoundPadGrid(){
   const wrap = document.getElementById('sp-piano');
   wrap.innerHTML = '';
-  const q = spFilterQuery.trim().toLowerCase();
   CHROMATIC_KEYS.forEach(function(k){
-    if (activeSPView === 'filter' && q){
-      const hay = (k.label + ' ' + (k.sub || '') + ' ' + k.id).toLowerCase().replace(/\u266f/g, '#');
-      if (hay.indexOf(q) === -1) return;
-    }
     wrap.appendChild(buildSoundPadCell(k));
   });
-  if (activeSPView === 'filter' && q && !wrap.children.length){
-    wrap.appendChild(el('div', { class: 'sp-filter-empty', text: 'No keys match "' + spFilterQuery.trim() + '"' }));
-  }
 }
 
 function renderSPViewToggle(){
@@ -1620,26 +1609,21 @@ function renderSPViewToggle(){
     track.appendChild(el('button', {
       class: 'mode-toggle-btn' + (activeSPView === opt.id ? ' active' : ''),
       text: opt.label,
-      onClick: function(){ activeSPView = opt.id; renderSoundPadsUI(); }
+      onClick: function(){ activeSPView = opt.id; renderSPViewToggle(); }
     }));
   });
-  let searchWrap = document.getElementById('sp-filter-search-wrap');
-  if (activeSPView === 'filter'){
-    if (!searchWrap){
-      searchWrap = el('div', { class: 'sp-filter-search-wrap', id: 'sp-filter-search-wrap' }, [
-        el('input', {
-          type: 'text', id: 'sp-filter-search', class: 'sp-filter-search',
-          placeholder: 'Filter keys\u2026 e.g. C, F#, Bb',
-          value: spFilterQuery,
-          onInput: function(e){ spFilterQuery = e.target.value; renderSoundPadGrid(); }
-        })
-      ]);
-      document.querySelector('.piano-wrap').insertBefore(searchWrap, document.getElementById('sp-piano'));
-    }
-  } else if (searchWrap){
-    searchWrap.remove();
-  }
+  renderSPViewVisibility();
 }
+function renderSPViewVisibility(){
+  const grid = document.getElementById('sp-piano');
+  const panel = document.getElementById('sp-filter-panel');
+  if (!grid || !panel) return;
+  const showFilter = activeSPView === 'filter';
+  grid.style.display = showFilter ? 'none' : '';
+  panel.style.display = showFilter ? '' : 'none';
+  if (showFilter) renderSPTransitionSection();
+}
+
 
 function buildSoundPadCell(k){
   const pad = state.soundPads[k.id];
@@ -3311,7 +3295,6 @@ function renderSettingsModal(){
   });
   renderShortcutList();
   renderAudioBalanceRow();
-  renderSPTransitionSection();
   const note = document.getElementById('storage-status-note');
   note.textContent = hasStorage
     ? 'Your sounds, edits, presets and settings are saved automatically in this workspace and will be restored next time you log in. Very large audio files may not be saved due to storage limits — you\u2019ll see a small note on any pad that needs re-uploading.'
