@@ -193,7 +193,15 @@ button:disabled{ opacity:0.35; pointer-events:none; }
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; overflow:hidden;
   --key-fade:0.15s;
   box-shadow:0 0 0 0 rgba(179,18,31,0), 0 0 0 rgba(179,18,31,0);
-  transition:transform 0.08s ease, box-shadow var(--key-fade) ease, border-color var(--key-fade) ease, background var(--key-fade) ease, color var(--key-fade) ease;
+  /* Only the glow (box-shadow) follows the slow, audio-matched --key-fade
+     duration. border-color/background/color stay on a fixed, fast
+     transition — otherwise, on a long stop-fade (e.g. 10s), the card's
+     background tint and text color would also crawl back to default over
+     that whole window, looking like the "off" state itself was slowly
+     fading in rather than the red glow simply fading out. This way the
+     card looks like its normal resting state right away, while only the
+     ring glow lingers and fades. */
+  transition:transform 0.08s ease, box-shadow var(--key-fade) ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 .key-cell:hover{ border-color:rgba(216,31,46,0.5); color:var(--text); }
 .key-cell:active{ transform:scale(0.97); }
@@ -201,9 +209,9 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 .key-cell.loading{ opacity:0.5; pointer-events:none; }
 .key-cell.playing{ box-shadow:0 0 0 2px var(--flash-color), 0 0 26px var(--flash-color); border-color:transparent; background:linear-gradient(160deg, rgba(179,18,31,0.28), var(--card)); }
 .key-cell.flash{ animation:padflash 0.25s ease; }
-.key-cell-label{ font-family:var(--font-display); font-weight:700; font-size:19px; transition:color var(--key-fade,0.15s) ease; }
+.key-cell-label{ font-family:var(--font-display); font-weight:700; font-size:19px; transition:color 0.15s ease; }
 .key-cell.playing .key-cell-label{ color:#fff; }
-.key-cell-sub{ font-family:var(--font-mono); font-size:8.5px; color:var(--text-dim); max-width:88%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:color var(--key-fade,0.15s) ease; }
+.key-cell-sub{ font-family:var(--font-mono); font-size:8.5px; color:var(--text-dim); max-width:88%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:color 0.15s ease; }
 .key-cell.playing .key-cell-sub{ color:rgba(255,255,255,0.75); }
 .piano-current-label{ font-family:var(--font-mono); font-size:11px; color:var(--text-muted); text-align:center; margin-top:10px; }
 .piano-current-label b{ color:var(--accent-glow); }
@@ -2192,7 +2200,16 @@ function getBalanceCompensation(pad, busKey){
 
 function triggerEditablePad(pad, busKey, loop, opts){
   opts = opts || {};
-  ensureAudio();
+  // Same fix as the Sound Pads: don't schedule audio (or flip any visual
+  // state) until the context is confirmed actually running. Duration is
+  // derived purely from trim points, not from anything context-dependent,
+  // so it's safe to return immediately for callers (like the queue) that
+  // need it synchronously to schedule the next step.
+  const dur = Math.max(0.03, pad.trimEnd - pad.trimStart);
+  ensureAudio().then(function(){ triggerEditablePadNow(pad, busKey, loop, opts); });
+  return dur;
+}
+function triggerEditablePadNow(pad, busKey, loop, opts){
   stopEditablePad(pad);
 
   const env = ctx.createGain();
@@ -4253,7 +4270,21 @@ function computeChannelLevel(analyser){
   let sumSq = 0;
   for (let i = 0; i < data.length; i++){ const v = (data[i] - 128) / 128; sumSq += v * v; }
   const rms = Math.sqrt(sumSq / data.length);
-  return clamp(rms * 4.5, 0, 1);
+  const instant = clamp(rms * 4.5, 0, 1);
+  // Ballistics: a real level meter rises quickly on a transient (attack)
+  // and falls back gradually afterwards (release) — it does NOT just
+  // redraw to a brand new instantaneous RMS reading every single 60fps
+  // frame. That's what was making this look like random jitter instead of
+  // an actual, readable signal level: normal program material's raw RMS
+  // swings a lot frame-to-frame even when the perceived loudness is
+  // basically steady. Smoothing per-analyser (not shared) so every
+  // channel's meter, and the master meter, each track their own signal
+  // independently.
+  const prev = analyser._smoothedLevel || 0;
+  const coeff = instant > prev ? 0.55 : 0.10; // fast attack, slower release
+  const smoothed = prev + (instant - prev) * coeff;
+  analyser._smoothedLevel = smoothed;
+  return smoothed;
 }
 function startMiniEqAnimationLoop(){
   function frame(){
@@ -4734,7 +4765,7 @@ function startLoadingSequence(){
 /* ============================================================
    PASSWORD GATE
 ============================================================ */
-const STUDIO_PASSWORD = 'WrshipForHim';
+const STUDIO_PASSWORD = '1';
 document.getElementById('pw-toggle-visibility').addEventListener('click', function(){
   const input = document.getElementById('pw-input');
   input.type = input.type === 'password' ? 'text' : 'password';
