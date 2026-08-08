@@ -1248,6 +1248,26 @@ const GITHUB_REPO_NAME = 'JAPZ-Worship-Essentials';
 const GITHUB_REPO_BRANCH = 'main';
 const GITHUB_PADS_FOLDER = 'Japz Pads';
 const GITHUB_PADS_API_URL = 'https://api.github.com/repos/' + GITHUB_REPO_OWNER + '/' + GITHUB_REPO_NAME + '/contents/' + encodeURIComponent(GITHUB_PADS_FOLDER);
+// Known filenames in the "Japz Pads" folder, keyed by their normalized chromatic
+// key id. Hardcoded (rather than relying solely on a live GitHub API listing) so
+// every pad is routable the instant the page loads, with no network round-trip
+// required before a tap works. The API scan below still runs and can add/override
+// entries (e.g. if new pads get uploaded later), but nothing depends on it —
+// pressing "A" plays "[A] - Sound Walls.wav" from the moment the app opens.
+const GITHUB_PAD_FILENAMES = {
+  'A':  '[A] - Sound Walls.wav',
+  'A#': '[Bb] - Sound Walls.wav',
+  'B':  '[B] - Sound Walls.wav',
+  'C':  '[C] - Sound Walls.wav',
+  'C#': '[C#] - Sound Walls.wav',
+  'D':  '[D] - Sound Walls.wav',
+  'D#': '[Eb] - Sound Walls.wav',
+  'E':  '[E] - Sound Walls.wav',
+  'F':  '[F] - Sound Walls.wav',
+  'F#': '[F#] - Sound Walls.wav',
+  'G':  '[G] - Sound Walls.wav',
+  'G#': '[Ab] - Sound Walls.wav'
+};
 let githubPadUrlMap = {}; // normalized key id ('A', 'A#', ...) -> { url, fileName }
 let githubPadManifestLoaded = false;
 const FLAT_TO_SHARP = { AB:'G#', BB:'A#', DB:'C#', EB:'D#', GB:'F#' };
@@ -1272,6 +1292,17 @@ function buildLfsMediaUrl(path){
   return 'https://media.githubusercontent.com/media/' + GITHUB_REPO_OWNER + '/' + GITHUB_REPO_NAME + '/' + GITHUB_REPO_BRANCH + '/' + encodedPath;
 }
 function loadGithubPadManifest(){
+  // Seed synchronously from the known filenames first, so pads are routable
+  // before any network request even fires — this is what actually makes tapping
+  // a pad work reliably, independent of whether the GitHub API is reachable.
+  Object.keys(GITHUB_PAD_FILENAMES).forEach(function(key){
+    const fileName = GITHUB_PAD_FILENAMES[key];
+    githubPadUrlMap[key] = { url: buildLfsMediaUrl(GITHUB_PADS_FOLDER + '/' + fileName), fileName: fileName };
+  });
+  githubPadManifestLoaded = true;
+  // Then, in the background, ask the GitHub API for the real folder listing.
+  // This is purely an enhancement — it lets newly-added/renamed pad files show
+  // up without a code change — but the app never waits on it or depends on it.
   return fetch(GITHUB_PADS_API_URL, { headers: { 'Accept': 'application/vnd.github+json' } })
     .then(function(r){ return r.ok ? r.json() : []; })
     .then(function(list){
@@ -1286,8 +1317,12 @@ function loadGithubPadManifest(){
         githubPadUrlMap[key] = { url: buildLfsMediaUrl(item.path), fileName: item.name };
       });
     })
-    .catch(function(){ /* offline, blocked, or repo unreachable — pads just fall back to manual upload */ })
-    .then(function(){ githubPadManifestLoaded = true; });
+    .catch(function(err){
+      // Offline, blocked, or repo unreachable — the hardcoded map above already
+      // covers all 12 keys, so pads keep working; this only affects future
+      // auto-discovery of newly added files.
+      console.warn('GitHub pad folder scan failed (auto-load still works from the built-in filename list):', err);
+    });
 }
 const githubPadManifestPromise = loadGithubPadManifest();
 
