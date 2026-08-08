@@ -1748,8 +1748,14 @@ function playSoundPadGeneration(pad, fadeSeconds, atTime){
 
   const now = atTime != null ? atTime : ctx.currentTime;
   const fadeIn = Math.max(fadeSeconds || 0.03, 0.03);
-  gainNode.gain.setValueAtTime(0.0001, now);
-  gainNode.gain.exponentialRampToValueAtTime(1, now + Math.min(fadeIn, Math.max(dur - 0.05, 0.03)));
+  // Linear (not exponential) gain ramp: an exponential ramp from a near-zero
+  // floor spends most of its time far below audible level and only becomes
+  // loud in the last sliver of the fade, so the sound seems to "arrive late"
+  // compared to the UI glow, which brightens roughly evenly across the same
+  // window. A linear ramp's loudness tracks the visible fade much more
+  // closely, so the pad is clearly audible right as the glow appears.
+  gainNode.gain.setValueAtTime(0, now);
+  gainNode.gain.linearRampToValueAtTime(1, now + Math.min(fadeIn, Math.max(dur - 0.05, 0.03)));
   src.start(now);
 
   pad.source = src;
@@ -1770,7 +1776,7 @@ function playSoundPadGeneration(pad, fadeSeconds, atTime){
   const loopXfade = Math.max(0.05, Math.min(settings.spTransition.loopXfade, dur / 3));
   const fadeOutStart = Math.max(now + 0.02, now + dur - loopXfade);
   gainNode.gain.setValueAtTime(1, fadeOutStart);
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, fadeOutStart + loopXfade);
+  gainNode.gain.linearRampToValueAtTime(0, fadeOutStart + loopXfade);
   // Kick off the next generation just before this one's tail fade begins,
   // so the new playthrough's fade-in overlaps the old one's fade-out —
   // no silence, no cut, no dependence on the user pressing anything.
@@ -1849,7 +1855,11 @@ function fadeOutAndStopSoundPad(pad, fadeSeconds, atTime){
       const cur = gainNode.gain.value || 1; // read BEFORE cancelling — reading after cancelScheduledValues() can return a stale value on some engines if a ramp was still in flight
       gainNode.gain.cancelScheduledValues(now);
       gainNode.gain.setValueAtTime(cur > 0.0001 ? cur : 1, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(fadeSeconds, 0.05));
+      // Linear (not exponential) to match the linear fade-in on the incoming
+      // key — with matching curves, the outgoing key's perceived loudness
+      // drops at the same rate the incoming key's rises, so the crossfade's
+      // midpoint sounds balanced instead of one side dominating.
+      gainNode.gain.linearRampToValueAtTime(0, now + Math.max(fadeSeconds, 0.05));
     } catch(e){}
   }
   if (src){
