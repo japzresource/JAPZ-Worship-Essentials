@@ -1704,7 +1704,7 @@ function duckOtherBusesForKeyChange(fadeSeconds){
 // with no cut — the only ways a pad ever goes quiet are stopSoundPad()
 // (user tapped this same key again) or being crossfaded out by a different
 // key being pressed. Reaching the end of the file is never one of them.
-function playSoundPadGeneration(pad, fadeSeconds){
+function playSoundPadGeneration(pad, fadeSeconds, atTime){
   const buffer = pad.buffer;
   if (!buffer) return;
   const dur = buffer.duration;
@@ -1714,7 +1714,7 @@ function playSoundPadGeneration(pad, fadeSeconds){
   src.connect(gainNode);
   gainNode.connect(state.channels.soundpad.input);
 
-  const now = ctx.currentTime;
+  const now = atTime != null ? atTime : ctx.currentTime;
   const fadeIn = Math.max(fadeSeconds || 0.03, 0.03);
   gainNode.gain.setValueAtTime(0.0001, now);
   gainNode.gain.exponentialRampToValueAtTime(1, now + Math.min(fadeIn, Math.max(dur - 0.05, 0.03)));
@@ -1790,11 +1790,15 @@ function startSoundPad(pad){
       updateSoundPadVisual(pad, 0.15);
     }, fadeSeconds * 1000 + 30);
   } else {
-    // Crossfade (default) — the outgoing key's fade-out and the new key's
-    // fade-in run at the same time, so there is never a silent gap.
-    fadeOutAndStopSoundPad(outgoing, fadeSeconds);
+    // Crossfade (default) — B's fade-in and C's fade-out are scheduled
+    // against the exact same audio-clock timestamp, so they are
+    // mathematically simultaneous on the graph, not just "close":
+    // as C's gain ramps 1 -> 0 over fadeSeconds, B's gain ramps
+    // 0 -> 1 over the same window, starting at the same instant.
+    const atTime = ctx.currentTime;
+    fadeOutAndStopSoundPad(outgoing, fadeSeconds, atTime);
     clearPadTimers(pad);
-    playSoundPadGeneration(pad, fadeSeconds);
+    playSoundPadGeneration(pad, fadeSeconds, atTime);
     pad.isPlaying = true;
     activeSoundPad = pad;
     updateSoundPadVisual(pad, fadeSeconds);
@@ -1804,11 +1808,11 @@ function startSoundPad(pad){
 
 // Fades a pad's current generation out over fadeSeconds, then stops it once
 // the fade has actually finished — the audio itself is never cut short.
-function fadeOutAndStopSoundPad(pad, fadeSeconds){
+function fadeOutAndStopSoundPad(pad, fadeSeconds, atTime){
   clearPadTimers(pad);
   const src = pad.source, gainNode = pad.gainNode;
   if (gainNode && ctx){
-    const now = ctx.currentTime;
+    const now = atTime != null ? atTime : ctx.currentTime;
     try {
       gainNode.gain.cancelScheduledValues(now);
       const cur = gainNode.gain.value || 1;
