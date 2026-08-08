@@ -182,12 +182,15 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 .mode-toggle-track{ display:flex; background:var(--panel); border:1px solid var(--border-strong); border-radius:999px; padding:4px; gap:4px; }
 .mode-toggle-btn{ padding:8px 22px; border-radius:999px; background:transparent; border:none; color:var(--text-dim); font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.06em; }
 .mode-toggle-btn.active{ background:var(--grad-accent); color:#fff; box-shadow:0 4px 14px rgba(179,18,31,0.4); }
+.filter-toggle-label{ display:block; text-align:center; font-family:var(--font-mono); font-size:10px; letter-spacing:0.3em; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; }
+.sp-filter-track .mode-toggle-btn{ padding:7px 14px; font-size:11px; }
 .key-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; max-width:520px; margin:0 auto; }
 .key-cell{
   position:relative; aspect-ratio:1/1; border-radius:12px; background:var(--card); border:2px solid var(--border-strong);
   color:var(--text-muted); font-family:var(--font-display); font-weight:700; font-size:19px;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; overflow:hidden;
   --key-fade:0.15s;
+  box-shadow:0 0 0 0 rgba(179,18,31,0), 0 0 0 rgba(179,18,31,0);
   transition:transform 0.08s ease, box-shadow var(--key-fade) ease, border-color var(--key-fade) ease, background var(--key-fade) ease, color var(--key-fade) ease;
 }
 .key-cell:hover{ border-color:rgba(216,31,46,0.5); color:var(--text); }
@@ -622,10 +625,8 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         </div>
         <div class="piano-wrap">
           <div class="mode-toggle">
-            <div class="mode-toggle-track">
-              <button class="mode-toggle-btn active" id="sp-mode-major">MAJOR</button>
-              <button class="mode-toggle-btn" id="sp-mode-minor">MINOR</button>
-            </div>
+            <span class="filter-toggle-label">Filter</span>
+            <div class="mode-toggle-track sp-filter-track" id="sp-filter-row"></div>
           </div>
           <div class="key-grid" id="sp-piano"></div>
         </div>
@@ -1075,7 +1076,6 @@ const CHROMATIC_KEYS = [
   { id:'G',  label:'G',  sub:null },
   { id:'G#', label:'G\u266F', sub:'Ab' }
 ];
-const SP_MODES = ['major', 'minor'];
 const MIX_BUS_KEYS = ['soundpad', 'soundboard', 'loop', 'music'];
 
 const DRUM_PAD_COUNT = 12;
@@ -1115,7 +1115,6 @@ const queuePlaying = { loop: false, music: false };
 const queueIndex = { loop: -1, music: -1 };
 const queueTransition = { loop: { type: 'cut', duration: 2 }, music: { type: 'cut', duration: 2 } };
 let activeSPCategory = 'A';
-let activeSPMode = 'major'; // 'major' | 'minor'
 let currentPresetId = '';
 
 const settings = {
@@ -1138,9 +1137,9 @@ const settings = {
 /* ============================================================
    PAD FACTORIES
 ============================================================ */
-function makeSoundPad(catId, mode){
+function makeSoundPad(catId){
   return {
-    id: 'sp-' + mode + '-' + catId, category: catId, mode: mode || 'major', name: catId,
+    id: 'sp-' + catId, category: catId, name: catId,
     buffer: null, rawArrayBuffer: null, fileName: '', loopEnabled: false,
     isPlaying: false, loading: false, loadError: false, playOnLoad: false, source: null,
     gainNode: null, _loopTimer: null, _stopTimer: null, el: null
