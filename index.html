@@ -184,7 +184,7 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 .mode-toggle-btn.active{ background:var(--grad-accent); color:#fff; box-shadow:0 4px 14px rgba(179,18,31,0.4); }
 .filter-toggle-label{ display:block; text-align:center; font-family:var(--font-mono); font-size:10px; letter-spacing:0.3em; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; }
 .sp-filter-track .mode-toggle-btn{ padding:7px 14px; font-size:11px; }
-.key-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; max-width:520px; margin:0 auto; }
+.key-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; max-width:480px; margin:0 auto; }
 .key-cell{
   position:relative; aspect-ratio:1/1; border-radius:12px; background:var(--card); border:2px solid var(--border-strong);
   color:var(--text-muted); font-family:var(--font-display); font-weight:700; font-size:19px;
@@ -538,7 +538,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
   .section-panel{ padding:16px; }
   .logo-sub{ display:none; }
   .loop-row{ flex-wrap:wrap; }
-  .key-grid{ gap:8px; }
+  .key-grid{ gap:8px; grid-template-columns:repeat(3,1fr); }
 }
 </style>
 </head>
@@ -621,7 +621,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
       <div class="section-panel">
         <div class="section-heading">
           <h2 class="section-title">Sound Pads</h2>
-          <span class="section-hint">Full chromatic key set · tap loads the matching pad automatically, tap again to play / stop</span>
+          <span class="section-hint">Keys A–G · tap loads the matching pad automatically, tap again to play / stop</span>
         </div>
         <div class="piano-wrap">
           <div class="mode-toggle">
@@ -863,6 +863,12 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
           <span>s</span>
         </div>
         <div class="settings-note" style="margin-top:6px;">How long a key takes to fade out when you tap that same key again to silence it — a slow wind-down instead of a hard stop.</div>
+        <div class="transition-duration-row" style="margin-top:8px;">
+          <span>Outline light fade (turning off)</span>
+          <input type="number" id="sp-transition-glowfade" min="0.1" max="20" step="0.1">
+          <span>s</span>
+        </div>
+        <div class="settings-note" style="margin-top:6px;">How long the pad's red outline takes to fade back to its default grey once you turn a key off — set independently from the audio fade above, so the light can settle faster or slower than the sound itself.</div>
         <div class="light-style-row" id="sp-duck-row" style="display:flex; gap:8px; margin-top:14px;"></div>
         <div id="sp-duck-amount-wrap" class="transition-duration-row" style="margin-top:8px;">
           <span>Duck Loops/Music to</span>
@@ -1062,19 +1068,14 @@ function markSaving(){
 /* ============================================================
    CONSTANTS
 ============================================================ */
-const CHROMATIC_KEYS = [
-  { id:'A',  label:'A',  sub:null },
-  { id:'A#', label:'A\u266F', sub:'Bb' },
-  { id:'B',  label:'B',  sub:null },
-  { id:'C',  label:'C',  sub:null },
-  { id:'C#', label:'C\u266F', sub:'Db' },
-  { id:'D',  label:'D',  sub:null },
-  { id:'D#', label:'D\u266F', sub:'Eb' },
-  { id:'E',  label:'E',  sub:null },
-  { id:'F',  label:'F',  sub:null },
-  { id:'F#', label:'F\u266F', sub:'Gb' },
-  { id:'G',  label:'G',  sub:null },
-  { id:'G#', label:'G\u266F', sub:'Ab' }
+const SOUND_PAD_KEYS = [
+  { id:'A', label:'A' },
+  { id:'B', label:'B' },
+  { id:'C', label:'C' },
+  { id:'D', label:'D' },
+  { id:'E', label:'E' },
+  { id:'F', label:'F' },
+  { id:'G', label:'G' }
 ];
 const MIX_BUS_KEYS = ['soundpad', 'soundboard', 'loop', 'music'];
 
@@ -1130,7 +1131,8 @@ const settings = {
     loopXfade: 2.5,        // seconds — a pad's own internal loop-point crossfade
     duckOthers: false,     // briefly duck Loops + Music while a key transition happens
     duckAmount: 40,          // % — how far to duck (40 = duck down to 40% volume)
-    stopFade: 10             // seconds — fade length when the user taps the SAME key again to turn it off
+    stopFade: 10,            // seconds — audio fade length when the user taps the SAME key again to turn it off
+    glowFade: 1.5            // seconds — how long the outline light takes to fade back to its default grey once a key is turned off (independent of the audio fade above)
   }
 };
 
@@ -1160,11 +1162,8 @@ function makeDrumPad(i){ return makeEditablePad('dp', i, 'PAD ' + (i + 1)); }
 function makeLoopPad(i){ return makeEditablePad('lp', i, 'LOOP ' + (i + 1)); }
 function makeMusicPad(i){ return makeEditablePad('mu', i, 'TRACK ' + (i + 1)); }
 
-CHROMATIC_KEYS.forEach(function(k){
-  SP_MODES.forEach(function(mode){
-    if (!state.soundPads[mode]) state.soundPads[mode] = {};
-    state.soundPads[mode][k.id] = makeSoundPad(k.id, mode);
-  });
+SOUND_PAD_KEYS.forEach(function(k){
+  state.soundPads[k.id] = makeSoundPad(k.id);
 });
 state.drumPads = Array.from({ length: DRUM_PAD_COUNT }, function(_, i){ return makeDrumPad(i); });
 state.loopPads = [];
@@ -1459,8 +1458,6 @@ function loadAudioFromUrl(url, pad, fileName, onLoaded){
    the intro animation) so pads are already loaded and ready by the
    time the user reaches the Sound Pads screen — tapping a pad is then
    just an instant play/stop, never a "wait for it to load" step.
-   Major and minor share the same underlying file per key, so each
-   file is only fetched/decoded once and handed to both pad objects.
    Skips any pad that already has audio (restored from a prior session,
    or manually uploaded) so it never clobbers a user's own file.
 ============================================================ */
@@ -1502,26 +1499,24 @@ function preloadGithubSoundPads(){
     return decodeCache[key];
   }
   const tasks = [];
-  CHROMATIC_KEYS.forEach(function(k){
-    SP_MODES.forEach(function(mode){
-      const pad = state.soundPads[mode][k.id];
-      if (pad.buffer || pad.loading) return; // already loaded or already in flight — leave it alone
-      pad.loading = true;
-      pad.loadError = false;
-      tasks.push(fetchDecode(k.id).then(function(result){
-        pad.loading = false;
-        if (result){
-          pad.buffer = result.buffer;
-          pad.rawArrayBuffer = result.raw;
-          pad.fileName = result.fileName;
-          scheduleSoundPadSave(mode, k.id);
-          if (pad.playOnLoad){ pad.playOnLoad = false; startSoundPad(pad); }
-        } else {
-          pad.loadError = true;
-        }
-        refreshAllUI();
-      }));
-    });
+  SOUND_PAD_KEYS.forEach(function(k){
+    const pad = state.soundPads[k.id];
+    if (pad.buffer || pad.loading) return; // already loaded or already in flight — leave it alone
+    pad.loading = true;
+    pad.loadError = false;
+    tasks.push(fetchDecode(k.id).then(function(result){
+      pad.loading = false;
+      if (result){
+        pad.buffer = result.buffer;
+        pad.rawArrayBuffer = result.raw;
+        pad.fileName = result.fileName;
+        scheduleSoundPadSave(k.id);
+        if (pad.playOnLoad){ pad.playOnLoad = false; startSoundPad(pad); }
+      } else {
+        pad.loadError = true;
+      }
+      refreshAllUI();
+    }));
   });
   refreshAllUI();
   return Promise.all(tasks);
@@ -1583,24 +1578,21 @@ function refreshAllUI(){
 }
 
 /* ============================================================
-   SOUND PADS — each of the 12 chromatic keys (x Major/Minor) is
-   itself a single playable pad: tap empty to upload, tap loaded
-   to play / stop. No extra sub-pad layer.
+   SOUND PADS — each of the 7 keys (A–G) is itself a single
+   playable pad: tap empty to upload, tap loaded to play / stop.
+   No extra sub-pad layer, no Major/Minor split.
 ============================================================ */
 function renderSoundPadsUI(){
   const wrap = document.getElementById('sp-piano');
   wrap.innerHTML = '';
-  CHROMATIC_KEYS.forEach(function(k){
+  SOUND_PAD_KEYS.forEach(function(k){
     wrap.appendChild(buildSoundPadCell(k));
   });
-  document.getElementById('sp-mode-major').classList.toggle('active', activeSPMode === 'major');
-  document.getElementById('sp-mode-minor').classList.toggle('active', activeSPMode === 'minor');
+  renderSPFilterRow();
 }
-document.getElementById('sp-mode-major').addEventListener('click', function(){ activeSPMode = 'major'; renderSoundPadsUI(); });
-document.getElementById('sp-mode-minor').addEventListener('click', function(){ activeSPMode = 'minor'; renderSoundPadsUI(); });
 
 function buildSoundPadCell(k){
-  const pad = state.soundPads[activeSPMode][k.id];
+  const pad = state.soundPads[k.id];
   const classes = ['key-cell'];
   if (!pad.buffer) classes.push('empty');
   if (pad.isPlaying) classes.push('playing');
@@ -1610,7 +1602,7 @@ function buildSoundPadCell(k){
   // and every pad loops seamlessly by itself, so there's nothing to upload,
   // replace, or toggle here. Just the key and its state.
   const wrap = el('div', {
-    class: classes.join(' '), title: k.sub ? (k.label + ' / ' + k.sub) : k.label,
+    class: classes.join(' '), title: k.label,
     onClick: function(e){ flashEl(wrap); onSoundPadClick(pad); }
   }, [
     el('div', { class: 'key-cell-label', text: k.label }),
@@ -1618,6 +1610,36 @@ function buildSoundPadCell(k){
   ]);
   pad.el = wrap;
   return wrap;
+}
+
+/* ============================================================
+   SOUND PADS — FILTER ROW
+   Quick access, right on the Sound Pads screen, to the same key-
+   change transition mode as the "Sound Pads — Key Transition"
+   section in Settings (they always stay in sync with each other).
+   "Filter" picks HOW a switch from one key to another behaves —
+   Crossfade / Wait for fade-out / Instant cut.
+============================================================ */
+function renderSPFilterRow(){
+  const row = document.getElementById('sp-filter-row');
+  if (!row) return;
+  row.innerHTML = '';
+  const tcfg = settings.spTransition;
+  SP_TRANSITION_MODES.forEach(function(opt){
+    row.appendChild(el('button', {
+      class: 'mode-toggle-btn' + (tcfg.mode === opt.id ? ' active' : ''), text: opt.label, title: opt.desc,
+      onClick: function(){ setSPTransitionMode(opt.id); }
+    }));
+  });
+}
+// Single source of truth for changing the key-change transition mode,
+// called from either the Sound Pads screen's Filter row or the Settings
+// modal's Key Transition row — keeps both UIs in sync automatically.
+function setSPTransitionMode(id){
+  settings.spTransition.mode = id;
+  saveSettings();
+  renderSPFilterRow();
+  renderSPTransitionSection();
 }
 
 
@@ -1634,14 +1656,14 @@ function onSoundPadClick(pad){
   if (!pad.buffer){
     if (githubPadManifestLoaded){
       const remote = githubPadUrlMap[normalizePadKeyToken(pad.category)];
-      if (remote) loadAudioFromUrl(remote.url, pad, remote.fileName, function(){ scheduleSoundPadSave(pad.mode, pad.category); startSoundPad(pad); });
-      else openFilePicker(pad, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
+      if (remote) loadAudioFromUrl(remote.url, pad, remote.fileName, function(){ scheduleSoundPadSave(pad.category); startSoundPad(pad); });
+      else openFilePicker(pad, function(){ scheduleSoundPadSave(pad.category); });
     } else {
       // Library listing hasn't finished loading yet (rare, right after page
       // load) — fall back to manual upload immediately rather than waiting on
       // the network, since opening the file dialog must happen synchronously
       // within this click or the browser will silently refuse to show it.
-      openFilePicker(pad, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
+      openFilePicker(pad, function(){ scheduleSoundPadSave(pad.category); });
     }
     return;
   }
@@ -1814,7 +1836,12 @@ function startSoundPad(pad){
 
 // Fades a pad's current generation out over fadeSeconds, then stops it once
 // the fade has actually finished — the audio itself is never cut short.
-function fadeOutAndStopSoundPad(pad, fadeSeconds, atTime){
+// visualFadeSeconds is optional and lets the on-screen outline glow fade
+// back to its default grey on its own timer, independent of the audio fade
+// (falls back to fadeSeconds — e.g. during a key-change crossfade — so the
+// glow and the audio still move together unless a caller explicitly wants
+// them decoupled, as stopSoundPad() below does).
+function fadeOutAndStopSoundPad(pad, fadeSeconds, atTime, visualFadeSeconds){
   clearPadTimers(pad);
   const src = pad.source, gainNode = pad.gainNode;
   if (gainNode && ctx){
@@ -1832,23 +1859,27 @@ function fadeOutAndStopSoundPad(pad, fadeSeconds, atTime){
   }
   pad.source = null; pad.gainNode = null; pad.isPlaying = false;
   if (activeSoundPad === pad) activeSoundPad = null;
-  updateSoundPadVisual(pad, fadeSeconds);
+  updateSoundPadVisual(pad, visualFadeSeconds != null ? visualFadeSeconds : fadeSeconds);
 }
 
 function stopSoundPad(pad){
   // The user is deliberately turning this exact key off (tapped it again),
-  // not switching to another one — so it gets its own slow fade-out
-  // (configurable in Settings) rather than the instant "cut" used for
-  // internal cleanup elsewhere.
+  // not switching to another one. The audio wind-down and the outline
+  // light's fade back to its default grey each have their own adjustable
+  // timer (both configurable in Settings), rather than the instant "cut"
+  // used for internal cleanup elsewhere.
   if (pendingKeySwitchTimer){ clearTimeout(pendingKeySwitchTimer); pendingKeySwitchTimer = null; }
   const fadeSeconds = Math.max(0.2, settings.spTransition.stopFade || 10);
-  fadeOutAndStopSoundPad(pad, fadeSeconds);
+  const glowFadeSeconds = Math.max(0.05, settings.spTransition.glowFade || 1.5);
+  fadeOutAndStopSoundPad(pad, fadeSeconds, null, glowFadeSeconds);
 }
 
-// Mirrors a pad's audio-gain envelope on screen: the "playing" glow
-// transitions over the exact same duration as the audio fade it represents,
-// so a key-change crossfade visibly fades one key out while fading the
-// other in, instead of an instant on/off flip.
+// Mirrors a pad's state on screen: the outline glow (box-shadow + border)
+// transitions from the accent color back to the default grey border over
+// fadeSeconds, via the --key-fade CSS custom property. During a key-change
+// crossfade this is given the same duration as the audio ramp it represents;
+// when a key is explicitly turned off, stopSoundPad() gives it its own
+// separately adjustable duration instead.
 function updateSoundPadVisual(pad, fadeSeconds){
   if (!pad.el) return;
   pad.el.style.setProperty('--key-fade', Math.max(fadeSeconds || 0.15, 0.05) + 's');
@@ -3093,11 +3124,9 @@ function createKnob(opts){
    STOP ALL
 ============================================================ */
 function stopAllAudio(){
-  SP_MODES.forEach(function(mode){
-    Object.keys(state.soundPads[mode]).forEach(function(catId){
-      const p = state.soundPads[mode][catId];
-      if (p.isPlaying) stopSoundPad(p);
-    });
+  Object.keys(state.soundPads).forEach(function(catId){
+    const p = state.soundPads[catId];
+    if (p.isPlaying) stopSoundPad(p);
   });
   state.drumPads.forEach(function(p){ if (p.isPlaying) stopEditablePad(p); });
   state.loopPads.forEach(function(p){ if (p.isPlaying) stopEditablePad(p); });
@@ -3343,7 +3372,7 @@ function renderSPTransitionSection(){
   SP_TRANSITION_MODES.forEach(function(opt){
     modeRow.appendChild(el('button', {
       class: 'light-style-btn' + (tcfg.mode === opt.id ? ' active' : ''), text: opt.label, title: opt.desc,
-      onClick: function(){ tcfg.mode = opt.id; saveSettings(); renderSPTransitionSection(); }
+      onClick: function(){ setSPTransitionMode(opt.id); }
     }));
   });
   const active = SP_TRANSITION_MODES.find(function(o){ return o.id === tcfg.mode; }) || SP_TRANSITION_MODES[0];
@@ -3360,6 +3389,10 @@ function renderSPTransitionSection(){
   const stopFadeInput = document.getElementById('sp-transition-stopfade');
   stopFadeInput.value = tcfg.stopFade;
   stopFadeInput.oninput = function(){ tcfg.stopFade = clamp(Number(stopFadeInput.value) || 10, 0.5, 30); saveSettings(); };
+
+  const glowFadeInput = document.getElementById('sp-transition-glowfade');
+  glowFadeInput.value = tcfg.glowFade;
+  glowFadeInput.oninput = function(){ tcfg.glowFade = clamp(Number(glowFadeInput.value) || 1.5, 0.1, 20); saveSettings(); };
 
   const duckRow = document.getElementById('sp-duck-row');
   duckRow.innerHTML = '';
@@ -4324,11 +4357,11 @@ function loadAudioForPad(keyName, pad){
   });
 }
 
-const scheduleSoundPadSave = debounce(function(mode, catId){ saveSoundPadCategory(mode, catId); }, 800);
-function saveSoundPadCategory(mode, catId){
+const scheduleSoundPadSave = debounce(function(catId){ saveSoundPadCategory(catId); }, 800);
+function saveSoundPadCategory(catId){
   markSaving();
-  const pad = state.soundPads[mode][catId];
-  storageSet('sp-meta:' + mode + ':' + catId, buildPadSnapshot(pad, false), false);
+  const pad = state.soundPads[catId];
+  storageSet('sp-meta:' + catId, buildPadSnapshot(pad, false), false);
   saveAudioIfSmall('sp-audio:' + pad.id, pad);
 }
 
@@ -4401,20 +4434,18 @@ function restoreSettings(){
 }
 function restoreSoundPads(){
   const jobs = [];
-  CHROMATIC_KEYS.forEach(function(k){
-    SP_MODES.forEach(function(mode){
-      jobs.push(storageGet('sp-meta:' + mode + ':' + k.id, false).then(function(raw){
-        if (!raw) return;
-        let m;
-        try { m = JSON.parse(raw); } catch(e){ return; }
-        if (!m || typeof m !== 'object') return;
-        const p = makeSoundPad(k.id, mode);
-        p.id = m.id || p.id; p.name = m.name || p.name; p.fileName = m.fileName || '';
-        p.loopEnabled = !!m.loopEnabled;
-        state.soundPads[mode][k.id] = p;
-        return p.fileName ? loadAudioForPad('sp-audio:' + p.id, p) : Promise.resolve();
-      }));
-    });
+  SOUND_PAD_KEYS.forEach(function(k){
+    jobs.push(storageGet('sp-meta:' + k.id, false).then(function(raw){
+      if (!raw) return;
+      let m;
+      try { m = JSON.parse(raw); } catch(e){ return; }
+      if (!m || typeof m !== 'object') return;
+      const p = makeSoundPad(k.id);
+      p.id = m.id || p.id; p.name = m.name || p.name; p.fileName = m.fileName || '';
+      p.loopEnabled = !!m.loopEnabled;
+      state.soundPads[k.id] = p;
+      return p.fileName ? loadAudioForPad('sp-audio:' + p.id, p) : Promise.resolve();
+    }));
   });
   return Promise.all(jobs);
 }
