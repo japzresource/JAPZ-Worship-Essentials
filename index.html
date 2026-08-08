@@ -858,6 +858,20 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
   </div>
 </div>
 
+<div class="modal-overlay" id="sends-detail-modal">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div class="modal-title-static" id="sdd-title">Channel Sends</div>
+      <button class="modal-close-btn" id="sdd-close"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="sdd-body"></div>
+      <div class="settings-note">Sends an extra copy of just this channel to another output device at the same time — for a monitor mix, a separate recording interface, or a second speaker set. Independent of this channel's main Output routing.</div>
+    </div>
+  </div>
+</div>
+
+
 <script>
 (function(){
 "use strict";
@@ -1205,7 +1219,15 @@ function buildChannel(name, opts){
 
 function initAudio(){
   if (ctx) return;
-  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  // latencyHint:'interactive' asks the browser for the smallest safe output
+  // buffer it can give us, minimizing the delay between a pad being tapped
+  // and sound actually reaching the main Output Device. This only affects
+  // the main output — the Sends (extra simultaneous outputs) below run
+  // through a separate <audio> element per device, which is the only way
+  // browsers currently allow more than one live output at once, and that
+  // path carries its own fixed buffering the page can't remove (see the
+  // note in the Sends panel).
+  ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
 
   masterBus = buildChannel('Master', { full:false });
   const limiter = ctx.createDynamicsCompressor();
@@ -3264,6 +3286,9 @@ function buildChannelStrip(channelKey, label){
   reverbModule.querySelector('.fx-module-title').appendChild(reverbPower);
   strip.appendChild(reverbModule);
 
+  const sendsOpenBtn = el('button', { class: 'eq-open-btn', text: 'Open Sends \u2197', onClick: function(){ openSendsDetail(channelKey, label); } });
+  strip.appendChild(sendsOpenBtn);
+
   const faderWrap = buildFader(ch, channelKey);
   strip.appendChild(faderWrap);
   strip._faderWrap = faderWrap;
@@ -3422,6 +3447,100 @@ function buildSendsUI(){
   }
   return el('div', { style: 'display:flex; flex-direction:column; gap:8px; width:100%;' }, rows);
 }
+
+/* ============================================================
+   PER-CHANNEL SENDS — same idea as the Master sends above (up to 4
+   extra simultaneous output devices per <audio> element), but tapped
+   from this one channel's own signal (post-FX, pre-master-bus) instead
+   of the master mix, so a channel can be sent solo to a monitor output
+   independent of what's happening on the other channels.
+   Note on latency: this path goes through a hidden <audio> element
+   because that's currently the only way a browser lets a page drive
+   more than one live output device at once — that element carries some
+   fixed internal buffering the page can't remove. The main Output
+   Device above (driven straight by the AudioContext with
+   latencyHint:'interactive') stays the lowest-latency path; use Sends
+   for a secondary monitor mix, not when near-zero delay matters most.
+============================================================ */
+function ensureChannelSendSlot(ch, i){
+  ch.sends = ch.sends || [];
+  if (ch.sends[i]) return ch.sends[i];
+  const streamDest = ctx.createMediaStreamDestination();
+  const audioEl = document.createElement('audio');
+  audioEl.autoplay = true;
+  audioEl.srcObject = streamDest.stream;
+  audioEl.style.display = 'none';
+  document.body.appendChild(audioEl);
+  const send = { enabled: false, deviceId: '', streamDest: streamDest, audioEl: audioEl };
+  ch.sends[i] = send;
+  return send;
+}
+function setChannelSendEnabled(ch, i, enabled){
+  const send = ensureChannelSendSlot(ch, i);
+  send.enabled = enabled;
+  if (enabled){
+    ch.soloGain.connect(send.streamDest);
+    try {
+      const p = send.audioEl.play();
+      if (p && typeof p.catch === 'function') p.catch(function(){});
+    } catch(e){}
+  } else {
+    try { ch.soloGain.disconnect(send.streamDest); } catch(e){}
+  }
+  saveMixSettings();
+}
+function setChannelSendDevice(ch, i, deviceId){
+  const send = ensureChannelSendSlot(ch, i);
+  send.deviceId = deviceId;
+  if (send.audioEl.setSinkId) send.audioEl.setSinkId(deviceId).catch(function(){});
+  saveMixSettings();
+}
+function buildChannelSendsRows(ch){
+  const supportsMultiSink = !!(window.HTMLMediaElement && window.HTMLMediaElement.prototype.setSinkId) && !!(ctx && ctx.createMediaStreamDestination);
+  if (!supportsMultiSink){
+    return el('div', { class: 'settings-note', style: 'margin-top:0;', text: 'Extra simultaneous outputs need per-element output routing, which this browser doesn\u2019t support yet. This channel still plays through the main Output Device.' });
+  }
+  const rows = [];
+  for (let i = 0; i < MAX_SENDS; i++){
+    const existing = (ch.sends || [])[i];
+    const toggle = el('button', { class: 'fx-power-btn' + (existing && existing.enabled ? ' on' : ''), text: existing && existing.enabled ? 'ON' : 'OFF' });
+    const select = el('select', { class: 'output-select', style: 'flex:1;' }, [el('option', { text: 'Choose device\u2026', value: '' })]);
+    listAudioOutputDevices().then(function(outputs){
+      outputs.forEach(function(d){
+        const opt = el('option', { text: d.label || 'Output ' + select.children.length, value: d.deviceId });
+        if (existing && existing.deviceId === d.deviceId) opt.selected = true;
+        select.appendChild(opt);
+      });
+    });
+    (function(i, toggle, select){
+      toggle.addEventListener('click', function(){
+        const send = ensureChannelSendSlot(ch, i);
+        const newVal = !send.enabled;
+        if (newVal && !send.deviceId){ alert('Choose an output device for this send first.'); return; }
+        setChannelSendEnabled(ch, i, newVal);
+        toggle.textContent = newVal ? 'ON' : 'OFF';
+        toggle.classList.toggle('on', newVal);
+      });
+      select.addEventListener('change', function(){ setChannelSendDevice(ch, i, select.value); });
+    })(i, toggle, select);
+    rows.push(el('div', { class: 'send-row' }, [toggle, select]));
+  }
+  return el('div', { style: 'display:flex; flex-direction:column; gap:8px; width:100%;' }, rows);
+}
+let currentSendsChannelKey = null;
+function openSendsDetail(channelKey, label){
+  currentSendsChannelKey = channelKey;
+  document.getElementById('sdd-title').textContent = label + ' \u2014 Sends';
+  const body = document.getElementById('sdd-body');
+  body.innerHTML = '';
+  body.appendChild(buildChannelSendsRows(state.channels[channelKey]));
+  document.getElementById('sends-detail-modal').classList.add('show');
+}
+function closeSendsDetail(){
+  document.getElementById('sends-detail-modal').classList.remove('show');
+  currentSendsChannelKey = null;
+}
+document.getElementById('sdd-close').addEventListener('click', closeSendsDetail);
 
 function buildMixUI(){
   const wrap = document.getElementById('mix-strips');
