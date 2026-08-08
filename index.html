@@ -1075,7 +1075,7 @@ function makeSoundPad(catId, mode){
   return {
     id: 'sp-' + mode + '-' + catId, category: catId, mode: mode || 'major', name: catId,
     buffer: null, rawArrayBuffer: null, fileName: '', loopEnabled: false,
-    isPlaying: false, loading: false, source: null, el: null
+    isPlaying: false, loading: false, loadError: false, playOnLoad: false, source: null, el: null
   };
 }
 function makeEditablePad(prefix, i, defaultName){
@@ -1352,6 +1352,63 @@ function loadAudioFromUrl(url, pad, fileName, onLoaded){
   });
 }
 
+/* ============================================================
+   BACKGROUND SOUND PAD PRELOAD
+   Fetches every "Japz Pads" WAV up front (right after login, during
+   the intro animation) so pads are already loaded and ready by the
+   time the user reaches the Sound Pads screen — tapping a pad is then
+   just an instant play/stop, never a "wait for it to load" step.
+   Major and minor share the same underlying file per key, so each
+   file is only fetched/decoded once and handed to both pad objects.
+   Skips any pad that already has audio (restored from a prior session,
+   or manually uploaded) so it never clobbers a user's own file.
+============================================================ */
+function preloadGithubSoundPads(){
+  ensureAudio();
+  const decodeCache = {}; // key id -> Promise<{buffer, raw, fileName} | null>
+  function fetchDecode(key){
+    if (decodeCache[key]) return decodeCache[key];
+    const remote = githubPadUrlMap[key];
+    if (!remote){ decodeCache[key] = Promise.resolve(null); return decodeCache[key]; }
+    decodeCache[key] = fetch(remote.url).then(function(r){
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.arrayBuffer();
+    }).then(function(raw){
+      return ctx.decodeAudioData(raw.slice(0)).then(function(buffer){
+        return { buffer: buffer, raw: raw, fileName: remote.fileName };
+      });
+    }).catch(function(err){
+      console.warn('Preload failed for pad "' + key + '":', err);
+      return null;
+    });
+    return decodeCache[key];
+  }
+  const tasks = [];
+  CHROMATIC_KEYS.forEach(function(k){
+    SP_MODES.forEach(function(mode){
+      const pad = state.soundPads[mode][k.id];
+      if (pad.buffer || pad.loading) return; // already loaded or already in flight — leave it alone
+      pad.loading = true;
+      pad.loadError = false;
+      tasks.push(fetchDecode(k.id).then(function(result){
+        pad.loading = false;
+        if (result){
+          pad.buffer = result.buffer;
+          pad.rawArrayBuffer = result.raw;
+          pad.fileName = result.fileName;
+          scheduleSoundPadSave(mode, k.id);
+          if (pad.playOnLoad){ pad.playOnLoad = false; startSoundPad(pad); }
+        } else {
+          pad.loadError = true;
+        }
+        refreshAllUI();
+      }));
+    });
+  });
+  refreshAllUI();
+  return Promise.all(tasks);
+}
+
 function openFilePicker(pad, onLoaded){
   const input = el('input', { type: 'file', accept: 'audio/*', style: 'display:none' });
   input.addEventListener('change', function(e){
@@ -1443,7 +1500,7 @@ function buildSoundPadCell(k){
     pad.buffer ? loopIcon : null,
     cornerIcon,
     el('div', { class: 'key-cell-label', text: k.label }),
-    el('div', { class: 'key-cell-sub', text: pad.loading ? 'Loading\u2026' : (pad.buffer ? pad.fileName : (pad.loadError ? '\u26A0 Load failed \u2014 tap to retry' : (pad.fileName ? '\u26A0 Re-upload' : 'Tap to play'))) })
+    el('div', { class: 'key-cell-sub', text: pad.loading ? (pad.playOnLoad ? 'Loading\u2026 will play' : 'Loading\u2026') : (pad.buffer ? '' : (pad.loadError ? '\u26A0 Load failed \u2014 tap to retry' : (pad.fileName ? '\u26A0 Re-upload' : 'Tap to play'))) })
   ]);
   pad.el = wrap;
   return wrap;
@@ -1458,7 +1515,7 @@ function flashEl(elm){
 }
 
 function onSoundPadClick(pad){
-  if (pad.loading) return;
+  if (pad.loading){ pad.playOnLoad = true; return; } // will auto-play the instant it finishes loading
   if (!pad.buffer){
     if (githubPadManifestLoaded){
       const remote = githubPadUrlMap[normalizePadKeyToken(pad.category)];
@@ -4137,6 +4194,12 @@ function attemptEnter(){
   document.getElementById('password-screen').classList.add('hide');
   ensureAudio();
   const restorePromise = restoreAllState().catch(function(){});
+  // Start fetching every Sound Pad's audio now, in the background, so by the
+  // time the person reaches the Sound Pads screen a tap is just instant
+  // play/stop — not "wait for it to load then tap again". Doesn't block
+  // entering the app; it keeps loading (and the UI keeps updating) even
+  // after the app screen is already showing.
+  restorePromise.then(function(){ preloadGithubSoundPads(); });
   playIntroSequence(function(){
     buildMixUI();
     refreshAllUI();
