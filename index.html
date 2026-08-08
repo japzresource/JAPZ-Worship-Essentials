@@ -320,6 +320,19 @@ body[data-light-style="pulse"] .loop-row.playing{ animation:padpulse 0.9s ease-i
 .queue-add-btn:hover{ color:#fff; border-color:var(--accent); }
 .media-progress-track{ height:3px; background:rgba(255,255,255,0.07); border-radius:2px; margin-top:6px; overflow:hidden; }
 .media-progress-fill{ height:100%; width:0%; background:var(--grad-accent); }
+
+.now-playing-bar{ display:none; }
+.now-playing-bar.show{ display:flex; flex-direction:column; gap:8px; background:var(--panel-2); border:1px solid var(--border-strong); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+.np-top-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.np-title{ font-family:var(--font-display); font-weight:700; font-size:13px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.np-transport{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.np-btn{ width:30px; height:30px; border-radius:8px; background:var(--panel); border:1px solid var(--border-strong); color:var(--text-muted); display:flex; align-items:center; justify-content:center; }
+.np-btn:hover{ color:#fff; border-color:var(--accent); }
+.np-btn.np-playpause{ width:36px; height:36px; background:var(--grad-accent); border-color:transparent; color:#fff; }
+.np-scrub-row{ display:flex; align-items:center; gap:10px; }
+.np-time{ font-family:var(--font-mono); font-size:10px; color:var(--text-dim); flex-shrink:0; min-width:34px; }
+.np-time.np-time-end{ text-align:right; }
+.np-scrubber{ flex:1; width:auto; }
 @media (max-width:900px){ .media-layout{ flex-direction:column; } .media-queue-panel{ flex-basis:auto; width:100%; } }
 .media-add-row{
   width:100%; display:flex; align-items:center; justify-content:center; gap:10px; padding:16px;
@@ -640,6 +653,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
           <span class="loop-search-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></span>
           <input type="text" id="loop-search-input" placeholder="Search loops by name…">
         </div>
+        <div class="now-playing-bar" id="loop-now-playing"></div>
         <div class="media-layout">
           <div class="media-main"><div class="loop-list" id="loop-list"></div></div>
           <div class="media-queue-panel" id="loop-queue-panel"></div>
@@ -661,6 +675,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
           <span class="loop-search-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></span>
           <input type="text" id="music-search-input" placeholder="Search music by name…">
         </div>
+        <div class="now-playing-bar" id="music-now-playing"></div>
         <div class="media-layout">
           <div class="media-main"><div class="loop-list" id="music-list"></div></div>
           <div class="media-queue-panel" id="music-queue-panel"></div>
@@ -905,7 +920,10 @@ const ICON_PATHS = {
   save: '<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path>',
   trash: '<path d="M3 6h18"></path><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"></path>',
   plus: '<path d="M12 5v14"></path><path d="M5 12h14"></path>',
-  refresh: '<path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.5 9a9 9 0 0114.8-3.4L23 10"></path><path d="M1 14l4.7 4.4A9 9 0 0020.5 15"></path>'
+  refresh: '<path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.5 9a9 9 0 0114.8-3.4L23 10"></path><path d="M1 14l4.7 4.4A9 9 0 0020.5 15"></path>',
+  skipback: '<path d="M19 20L9 12l10-8v16z"></path><path d="M5 19V5"></path>',
+  skipforward: '<path d="M5 4l10 8-10 8V4z"></path><path d="M19 5v14"></path>',
+  pause: '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>'
 };
 function svgIcon(name, size){
   size = size || 14;
@@ -985,9 +1003,6 @@ function markSaving(){
    CONSTANTS
 ============================================================ */
 const CHROMATIC_KEYS = [
-  { id:'A',  label:'A',  sub:null },
-  { id:'A#', label:'A\u266F', sub:'Bb' },
-  { id:'B',  label:'B',  sub:null },
   { id:'C',  label:'C',  sub:null },
   { id:'C#', label:'C\u266F', sub:'Db' },
   { id:'D',  label:'D',  sub:null },
@@ -996,25 +1011,11 @@ const CHROMATIC_KEYS = [
   { id:'F',  label:'F',  sub:null },
   { id:'F#', label:'F\u266F', sub:'Gb' },
   { id:'G',  label:'G',  sub:null },
-  { id:'G#', label:'G\u266F', sub:'Ab' }
+  { id:'G#', label:'G\u266F', sub:'Ab' },
+  { id:'A',  label:'A',  sub:null },
+  { id:'A#', label:'A\u266F', sub:'Bb' },
+  { id:'B',  label:'B',  sub:null }
 ];
-/* Expected filename for each key's pre-assigned sound (from the "Sound Walls"
-   pack) — shown on the pad so you know exactly which file to pick when you
-   tap it, instead of a generic "Tap to upload" placeholder. */
-const SP_DEFAULT_FILENAMES = {
-  'A':  '[A] - Sound Walls.wav',
-  'A#': '[Bb] - Sound Walls.wav',
-  'B':  '[B] - Sound Walls.wav',
-  'C':  '[C] - Sound Walls.wav',
-  'C#': '[C#] - Sound Walls.wav',
-  'D':  '[D] - Sound Walls.wav',
-  'D#': '[Eb] - Sound Walls.wav',
-  'E':  '[E] - Sound Walls.wav',
-  'F':  '[F] - Sound Walls.wav',
-  'F#': '[F#] - Sound Walls.wav',
-  'G':  '[G] - Sound Walls.wav',
-  'G#': '[Ab] - Sound Walls.wav'
-};
 const SP_MODES = ['major', 'minor'];
 const MIX_BUS_KEYS = ['soundpad', 'soundboard', 'loop', 'music'];
 
@@ -1422,8 +1423,8 @@ function scheduleGranularOneShot(pad, destNode, startOffset, endOffset){
   }
   return { grains: grains, totalOutputDuration: totalOutputDuration };
 }
-function startGranularLoop(pad, destNode){
-  let sourcePos = pad.trimStart;
+function startGranularLoop(pad, destNode, startOffset){
+  let sourcePos = startOffset != null ? startOffset : pad.trimStart;
   let nextOutTime = ctx.currentTime + 0.05;
   const grains = [];
   function topUp(){
@@ -1642,23 +1643,25 @@ function triggerEditablePad(pad, busKey, loop, opts){
   pad.activeNodes = { env: env, low: low, mid: mid, high: high, comp: comp };
 
   const dur = Math.max(0.03, pad.trimEnd - pad.trimStart);
+  const startOffset = clamp(opts.seekOffset != null ? opts.seekOffset : pad.trimStart, pad.trimStart, pad.trimEnd - 0.02);
+  const remainingDur = Math.max(0.03, pad.trimEnd - startOffset);
   const fadeIn = Math.min(pad.fadeIn, dur / 2);
   const fadeOut = Math.min(opts.fadeOutOverride != null ? opts.fadeOutOverride : pad.fadeOut, dur / 2);
   const now = ctx.currentTime;
   const g = Math.max(pad.gain * getBalanceCompensation(pad, busKey), 0.0001);
   const needsGranular = Math.abs(pad.pitch || 0) > 0.5 || Math.abs((pad.tempoRatio || 1) - 1) > 0.002;
-  pad.playStartTime = now;
+  pad.playStartTime = now - (startOffset - pad.trimStart);
 
   if (needsGranular){
     if (loop){
-      pad.granularHandle = startGranularLoop(pad, env);
+      pad.granularHandle = startGranularLoop(pad, env, startOffset);
       env.gain.setValueAtTime(0.0001, now);
       env.gain.exponentialRampToValueAtTime(g, now + Math.max(fadeIn, 0.02));
       pad.isPlaying = true;
       pad.playTotalDuration = dur;
       refreshPlayVisual(pad);
     } else {
-      const result = scheduleGranularOneShot(pad, env, pad.trimStart, pad.trimEnd);
+      const result = scheduleGranularOneShot(pad, env, startOffset, pad.trimEnd);
       pad.granularHandle = { grains: result.grains, stop: function(){ result.grains.forEach(function(s){ try { s.stop(); } catch(e){} }); } };
       env.gain.setValueAtTime(0.0001, now);
       if (fadeIn > 0.001) env.gain.exponentialRampToValueAtTime(g, now + fadeIn);
@@ -1668,7 +1671,7 @@ function triggerEditablePad(pad, busKey, loop, opts){
         env.gain.exponentialRampToValueAtTime(0.0001, now + result.totalOutputDuration);
       }
       pad.isPlaying = true;
-      pad.playTotalDuration = result.totalOutputDuration;
+      pad.playTotalDuration = dur;
       refreshPlayVisual(pad);
       const thisHandle = pad.granularHandle;
       setTimeout(function(){
@@ -1691,14 +1694,14 @@ function triggerEditablePad(pad, busKey, loop, opts){
       src.loop = true;
       src.loopStart = pad.trimStart;
       src.loopEnd = pad.trimEnd;
-      src.start(now, pad.trimStart);
+      src.start(now, startOffset);
       pad.playTotalDuration = dur;
     } else {
       if (fadeOut > 0.001){
-        env.gain.setValueAtTime(g, Math.max(now, now + dur - fadeOut));
-        env.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+        env.gain.setValueAtTime(g, Math.max(now, now + remainingDur - fadeOut));
+        env.gain.exponentialRampToValueAtTime(0.0001, now + remainingDur);
       }
-      src.start(now, pad.trimStart, dur);
+      src.start(now, startOffset, remainingDur);
       pad.playTotalDuration = dur;
     }
     pad.source = src;
@@ -2155,7 +2158,110 @@ function initMediaListUI(kind){
    QUEUE — Music & Loops can queue tracks to play in sequence,
    with an OBS-style Cut / Fade transition between them.
 ============================================================ */
+function fmtTimeShort(s){
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+function findPlayingMediaPad(kind){
+  const cfg = MEDIA_KINDS[kind];
+  return state[cfg.arrayKey].find(function(p){ return p.isPlaying; }) || null;
+}
+function buildNowPlayingBar(kind){
+  const bar = document.getElementById(kind + '-now-playing');
+  if (!bar) return;
+  bar.innerHTML = '';
+  const title = el('div', { class: 'np-title', text: '' });
+  const prevBtn = el('button', { class: 'np-btn', html: svgIcon('skipback', 12), title: 'Previous' });
+  const playPauseBtn = el('button', { class: 'np-btn np-playpause', html: svgIcon('pause', 13), title: 'Pause' });
+  const nextBtn = el('button', { class: 'np-btn', html: svgIcon('skipforward', 12), title: 'Next' });
+  const stopBtn = el('button', { class: 'np-btn', html: svgIcon('stop', 11), title: 'Stop' });
+  prevBtn.addEventListener('click', function(){ queueStepRelative(kind, -1); });
+  nextBtn.addEventListener('click', function(){ queueStepRelative(kind, 1); });
+  playPauseBtn.addEventListener('click', function(){
+    const pad = findPlayingMediaPad(kind);
+    if (pad){ stopEditablePad(pad); if (queuePlaying[kind]) stopQueueForKind(kind); }
+    renderMediaListUI(kind);
+    updateNowPlayingBar(kind);
+  });
+  stopBtn.addEventListener('click', function(){
+    const pad = findPlayingMediaPad(kind);
+    if (pad) stopEditablePad(pad);
+    if (queuePlaying[kind]) stopQueueForKind(kind);
+    renderMediaListUI(kind);
+    updateNowPlayingBar(kind);
+  });
+
+  const elapsedEl = el('span', { class: 'np-time', text: '0:00' });
+  const totalEl = el('span', { class: 'np-time np-time-end', text: '0:00' });
+  const scrubber = el('input', { type: 'range', class: 'np-scrubber', min: '0', max: '1000', value: '0' });
+  scrubber.addEventListener('pointerdown', function(){ bar._scrubbing = true; });
+  scrubber.addEventListener('input', function(){
+    const pad = findPlayingMediaPad(kind);
+    if (!pad || !pad.playTotalDuration) return;
+    elapsedEl.textContent = fmtTimeShort((scrubber.value / 1000) * pad.playTotalDuration);
+  });
+  scrubber.addEventListener('change', function(){
+    bar._scrubbing = false;
+    const pad = findPlayingMediaPad(kind);
+    if (!pad) return;
+    const cfg = MEDIA_KINDS[kind];
+    const frac = Number(scrubber.value) / 1000;
+    const dur = pad.trimEnd - pad.trimStart;
+    triggerEditablePad(pad, cfg.busKey, pad.loopEnabled, { seekOffset: pad.trimStart + frac * dur });
+    scheduleMediaPadSave(kind, pad);
+    renderMediaListUI(kind);
+  });
+
+  bar.appendChild(el('div', { class: 'np-top-row' }, [title, el('div', { class: 'np-transport' }, [prevBtn, playPauseBtn, nextBtn, stopBtn])]));
+  bar.appendChild(el('div', { class: 'np-scrub-row' }, [elapsedEl, scrubber, totalEl]));
+  bar._title = title; bar._playPauseBtn = playPauseBtn; bar._elapsedEl = elapsedEl; bar._totalEl = totalEl; bar._scrubber = scrubber; bar._scrubbing = false;
+}
+function updateNowPlayingBar(kind){
+  const bar = document.getElementById(kind + '-now-playing');
+  if (!bar || !bar._title) return;
+  const pad = findPlayingMediaPad(kind);
+  if (!pad){ bar.classList.remove('show'); return; }
+  bar.classList.add('show');
+  bar._title.textContent = pad.name || 'Untitled';
+  bar._totalEl.textContent = fmtTimeShort(pad.playTotalDuration || 0);
+}
+function updateNowPlayingProgress(kind){
+  const bar = document.getElementById(kind + '-now-playing');
+  if (!bar || !bar._scrubber || !ctx) return;
+  const pad = findPlayingMediaPad(kind);
+  if (!pad){ if (bar.classList.contains('show')) bar.classList.remove('show'); return; }
+  if (!bar.classList.contains('show')) updateNowPlayingBar(kind);
+  if (bar._scrubbing) return;
+  const total = pad.playTotalDuration || 0.001;
+  const elapsed = ctx.currentTime - (pad.playStartTime || ctx.currentTime);
+  const isLooping = !!((pad.source && pad.source.loop) || (pad.granularHandle && pad.loopEnabled));
+  const frac = isLooping ? ((((elapsed % total) + total) % total) / total) : clamp(elapsed / total, 0, 1);
+  bar._scrubber.value = String(Math.round(frac * 1000));
+  bar._elapsedEl.textContent = fmtTimeShort(isLooping ? frac * total : Math.min(elapsed, total));
+}
+function queueStepRelative(kind, dir){
+  if (queuePlaying[kind] && queueIndex[kind] !== -1){
+    playQueueFrom(kind, queueIndex[kind] + dir);
+    return;
+  }
+  const cfg = MEDIA_KINDS[kind];
+  const arr = state[cfg.arrayKey];
+  const pad = findPlayingMediaPad(kind);
+  if (!pad) return;
+  const idx = arr.indexOf(pad);
+  const nextIdx = idx + dir;
+  if (nextIdx < 0 || nextIdx >= arr.length || !arr[nextIdx].buffer) return;
+  const nextPad = arr[nextIdx];
+  stopAllOtherMediaPads(kind, nextPad);
+  triggerEditablePad(nextPad, cfg.busKey, nextPad.loopEnabled);
+  scheduleMediaPadSave(kind, nextPad);
+  renderMediaListUI(kind);
+  updateNowPlayingBar(kind);
+}
+
 function initQueuePanel(kind){
+  buildNowPlayingBar(kind);
   const cfg = MEDIA_KINDS[kind];
   const panel = document.getElementById(cfg.queuePanelId);
   if (!panel) return;
@@ -2262,6 +2368,7 @@ function playQueueFrom(kind, index){
   });
   renderQueuePanel(kind);
   renderMediaListUI(kind);
+  updateNowPlayingBar(kind);
   if (fadeSecs > 0 && totalDur > fadeSecs + 0.05){
     setTimeout(function(){
       if (queuePlaying[kind] && queueIndex[kind] === index) playQueueFrom(kind, index + 1);
@@ -2275,6 +2382,7 @@ function stopQueueForKind(kind){
   state[cfg.arrayKey].forEach(function(p){ if (p.isPlaying) stopEditablePad(p); });
   renderQueuePanel(kind);
   renderMediaListUI(kind);
+  updateNowPlayingBar(kind);
 }
 
 function renderMediaListUI(kind){
@@ -2356,9 +2464,6 @@ function buildMediaRowEl(pad, kind){
     onClick: function(e){ e.stopPropagation(); addToQueue(kind, pad); }
   });
 
-  const progressFill = el('div', { class: 'media-progress-fill' });
-  pad.progressFillEl = progressFill;
-
   const wrap = el('div', { class: classes.join(' '), onClick: function(){
     flashEl(wrap);
     if (pad.loading) return;
@@ -2370,12 +2475,12 @@ function buildMediaRowEl(pad, kind){
       triggerEditablePad(pad, cfg.busKey, pad.loopEnabled);
     }
     scheduleMediaPadSave(kind, pad);
+    updateNowPlayingBar(kind);
   }, oncontextmenu: function(e){ e.preventDefault(); addToQueue(kind, pad); } }, [
     el('div', { class: 'loop-reel' }),
     el('div', { class: 'loop-info' }, [
       nameInput,
-      el('div', { class: 'loop-file', text: pad.buffer ? pad.fileName + (pad.isPlaying ? ' · playing' : '') : (pad.fileName ? '\u26A0 Re-upload "' + pad.fileName + '"' : 'No file loaded — tap to upload') }),
-      el('div', { class: 'media-progress-track' }, [progressFill])
+      el('div', { class: 'loop-file', text: pad.buffer ? pad.fileName + (pad.isPlaying ? ' · playing' : '') : (pad.fileName ? '\u26A0 Re-upload "' + pad.fileName + '"' : 'No file loaded — tap to upload') })
     ]),
     queueAddBtn,
     el('div', { class: 'loop-controls' }, [loopToggle, editBtn, uploadBtn, removeBtn])
@@ -2457,7 +2562,8 @@ function createKnob(opts){
 function stopAllAudio(){
   SP_MODES.forEach(function(mode){
     Object.keys(state.soundPads[mode]).forEach(function(catId){
-      state.soundPads[mode][catId].forEach(function(p){ if (p.isPlaying) stopSoundPad(p); });
+      const p = state.soundPads[mode][catId];
+      if (p.isPlaying) stopSoundPad(p);
     });
   });
   state.drumPads.forEach(function(p){ if (p.isPlaying) stopEditablePad(p); });
@@ -3412,14 +3518,8 @@ function startMiniEqAnimationLoop(){
         const level = computeChannelLevel(masterBus.analyser);
         masterBus.meterMaskEl.style.height = (100 - level * 100) + '%';
       }
-      state.loopPads.concat(state.musicPads).forEach(function(p){
-        if (!p.progressFillEl) return;
-        if (!p.isPlaying || !p.playTotalDuration){ p.progressFillEl.style.width = p.isPlaying ? p.progressFillEl.style.width : '0%'; return; }
-        const elapsed = ctx.currentTime - (p.playStartTime || ctx.currentTime);
-        const isLooping = !!(p.source && p.source.loop) || !!p.granularHandle && p.loopEnabled;
-        const frac = isLooping ? (elapsed % p.playTotalDuration) / p.playTotalDuration : clamp(elapsed / p.playTotalDuration, 0, 1);
-        p.progressFillEl.style.width = (frac * 100) + '%';
-      });
+      updateNowPlayingProgress('loop');
+      updateNowPlayingProgress('music');
     }
     requestAnimationFrame(frame);
   }
@@ -3548,9 +3648,9 @@ function loadAudioForPad(keyName, pad){
 const scheduleSoundPadSave = debounce(function(mode, catId){ saveSoundPadCategory(mode, catId); }, 800);
 function saveSoundPadCategory(mode, catId){
   markSaving();
-  const arr = state.soundPads[mode][catId];
-  storageSet('sp-meta:' + mode + ':' + catId, arr.map(function(p){ return buildPadSnapshot(p, false); }), false);
-  arr.forEach(function(p){ saveAudioIfSmall('sp-audio:' + p.id, p); });
+  const pad = state.soundPads[mode][catId];
+  storageSet('sp-meta:' + mode + ':' + catId, buildPadSnapshot(pad, false), false);
+  saveAudioIfSmall('sp-audio:' + pad.id, pad);
 }
 
 const scheduleDrumPadSave = debounce(function(pad){ saveDrumPad(pad); }, 800);
@@ -3625,19 +3725,14 @@ function restoreSoundPads(){
     SP_MODES.forEach(function(mode){
       jobs.push(storageGet('sp-meta:' + mode + ':' + k.id, false).then(function(raw){
         if (!raw) return;
-        let meta;
-        try { meta = JSON.parse(raw); } catch(e){ return; }
-        if (!Array.isArray(meta) || !meta.length) return;
-        const arr = meta.map(function(m, i2){
-          const p = makeSoundPad(k.id, i2, mode);
-          p.id = m.id || p.id; p.name = m.name || p.name; p.fileName = m.fileName || '';
-          p.loopEnabled = !!m.loopEnabled; p.colorIndex = (m.colorIndex != null ? m.colorIndex : i2 % PALETTE.length);
-          return p;
-        });
-        state.soundPads[mode][k.id] = arr;
-        return Promise.all(arr.map(function(p){
-          return p.fileName ? loadAudioForPad('sp-audio:' + p.id, p) : Promise.resolve();
-        }));
+        let m;
+        try { m = JSON.parse(raw); } catch(e){ return; }
+        if (!m || typeof m !== 'object') return;
+        const p = makeSoundPad(k.id, mode);
+        p.id = m.id || p.id; p.name = m.name || p.name; p.fileName = m.fileName || '';
+        p.loopEnabled = !!m.loopEnabled;
+        state.soundPads[mode][k.id] = p;
+        return p.fileName ? loadAudioForPad('sp-audio:' + p.id, p) : Promise.resolve();
       }));
     });
   });
@@ -3988,18 +4083,5 @@ window.addEventListener('resize', function(){
 
 })();
 </script>
-
-<!-- Supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-const supabase = window.supabase.createClient(
-  "https://iqjpeldglietybpviuap.supabase.co",
-  "sb_publishable_k4lw74s4lB2OFsgpWFJXBQ_g23JUFel"
-);
-
-console.log("✅ Connected to Supabase!");
-</script>
-
 </body>
 </html>
