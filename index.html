@@ -647,7 +647,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
             <div class="settings-note" style="margin-top:6px;">How each key's own audio loops seamlessly under itself, independent of key-change transitions above.</div>
             <div class="transition-duration-row" style="margin-top:8px;">
               <span>Turn-off fade (tap same key again)</span>
-              <input type="number" id="sp-transition-stopfade" min="0.5" max="30" step="0.5">
+              <input type="number" id="sp-transition-stopfade" min="1" max="20" step="1">
               <span>s</span>
             </div>
             <div class="settings-note" style="margin-top:6px;">How long a key takes to fade out when you tap that same key again to silence it — a slow wind-down instead of a hard stop.</div>
@@ -1867,7 +1867,7 @@ function stopSoundPad(pad){
   // (configurable in Settings) rather than the instant "cut" used for
   // internal cleanup elsewhere.
   if (pendingKeySwitchTimer){ clearTimeout(pendingKeySwitchTimer); pendingKeySwitchTimer = null; }
-  const fadeSeconds = Math.max(0.2, settings.spTransition.stopFade || 10);
+  const fadeSeconds = Math.max(1, settings.spTransition.stopFade || 10);
   fadeOutAndStopSoundPad(pad, fadeSeconds);
 }
 
@@ -3382,7 +3382,7 @@ function renderSPTransitionSection(){
 
   const stopFadeInput = document.getElementById('sp-transition-stopfade');
   stopFadeInput.value = tcfg.stopFade;
-  stopFadeInput.oninput = function(){ tcfg.stopFade = clamp(Number(stopFadeInput.value) || 10, 0.5, 30); saveSettings(); };
+  stopFadeInput.oninput = function(){ tcfg.stopFade = clamp(Number(stopFadeInput.value) || 10, 1, 20); saveSettings(); };
 
   const duckRow = document.getElementById('sp-duck-row');
   duckRow.innerHTML = '';
@@ -4412,7 +4412,10 @@ function restoreSettings(){
       if (s.flash) applyFlash(s.flash);
       if (s.lightStyle) applyLightStyle(s.lightStyle);
       if (s.audioBalance) settings.audioBalance = Object.assign({ soundpad:false, soundboard:false, loop:false, music:false }, s.audioBalance);
-      if (s.spTransition) Object.assign(settings.spTransition, s.spTransition);
+      if (s.spTransition){
+        Object.assign(settings.spTransition, s.spTransition);
+        settings.spTransition.stopFade = clamp(settings.spTransition.stopFade || 10, 1, 20);
+      }
       if (Array.isArray(s.padShortcuts) && s.padShortcuts.length === DRUM_PAD_COUNT) padShortcuts = s.padShortcuts.slice();
       if (s.queueTransition){
         ['loop','music'].forEach(function(k){
