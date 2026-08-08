@@ -607,7 +607,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
       <div class="section-panel">
         <div class="section-heading">
           <h2 class="section-title">Sound Pads</h2>
-          <span class="section-hint">Full chromatic key set · tap to upload, tap again to play / stop</span>
+          <span class="section-hint">Full chromatic key set · tap loads the matching pad automatically, tap again to play / stop</span>
         </div>
         <div class="piano-wrap">
           <div class="mode-toggle">
@@ -1003,6 +1003,9 @@ function markSaving(){
    CONSTANTS
 ============================================================ */
 const CHROMATIC_KEYS = [
+  { id:'A',  label:'A',  sub:null },
+  { id:'A#', label:'A\u266F', sub:'Bb' },
+  { id:'B',  label:'B',  sub:null },
   { id:'C',  label:'C',  sub:null },
   { id:'C#', label:'C\u266F', sub:'Db' },
   { id:'D',  label:'D',  sub:null },
@@ -1011,10 +1014,7 @@ const CHROMATIC_KEYS = [
   { id:'F',  label:'F',  sub:null },
   { id:'F#', label:'F\u266F', sub:'Gb' },
   { id:'G',  label:'G',  sub:null },
-  { id:'G#', label:'G\u266F', sub:'Ab' },
-  { id:'A',  label:'A',  sub:null },
-  { id:'A#', label:'A\u266F', sub:'Bb' },
-  { id:'B',  label:'B',  sub:null }
+  { id:'G#', label:'G\u266F', sub:'Ab' }
 ];
 const SP_MODES = ['major', 'minor'];
 const MIX_BUS_KEYS = ['soundpad', 'soundboard', 'loop', 'music'];
@@ -1232,6 +1232,69 @@ function initAudio(){
 /* ============================================================
    FILE LOADING
 ============================================================ */
+/* ============================================================
+   AUTO-ROUTED SOUND PAD LIBRARY
+   The "Japz Pads" folder in the JAPZ-Worship-Essentials GitHub repo
+   holds one WAV per chromatic key, named like "[A] - Sound Walls.wav".
+   On load we ask the GitHub API for that folder's file listing, pull
+   the bracketed key out of each filename, and remember its raw
+   download URL. When a Sound Pad is tapped and has nothing loaded
+   yet, we fetch straight from that URL instead of opening the file
+   picker — so pressing "A" automatically plays "[A] - Sound Walls.wav"
+   with no manual upload needed. Re-uploading a pad still overrides it.
+============================================================ */
+const GITHUB_PADS_API_URL = 'https://api.github.com/repos/japzresource/JAPZ-Worship-Essentials/contents/Japz%20Pads';
+let githubPadUrlMap = {}; // normalized key id ('A', 'A#', ...) -> { url, fileName }
+function normalizePadKeyToken(raw){
+  return String(raw || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\u266F/g, '#')   // musical sharp symbol -> '#'
+    .replace(/SHARP/g, '#')
+    .replace(/\s+/g, '');
+}
+function loadGithubPadManifest(){
+  return fetch(GITHUB_PADS_API_URL, { headers: { 'Accept': 'application/vnd.github+json' } })
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(function(list){
+      if (!Array.isArray(list)) return;
+      list.forEach(function(item){
+        if (!item || !item.name || item.type !== 'file') return;
+        if (!/\.(wav|mp3|ogg|m4a|aif|aiff)$/i.test(item.name)) return;
+        const m = item.name.match(/^\s*\[([^\]]+)\]/); // pulls "A" out of "[A] - Sound Walls.wav"
+        if (!m) return;
+        const key = normalizePadKeyToken(m[1]);
+        if (!key) return;
+        githubPadUrlMap[key] = { url: item.download_url, fileName: item.name };
+      });
+    })
+    .catch(function(){ /* offline, blocked, or repo unreachable — pads just fall back to manual upload */ });
+}
+const githubPadManifestPromise = loadGithubPadManifest();
+
+function loadAudioFromUrl(url, pad, fileName, onLoaded){
+  ensureAudio();
+  pad.loading = true;
+  refreshAllUI();
+  fetch(url).then(function(r){
+    if (!r.ok) throw new Error('fetch failed');
+    return r.arrayBuffer();
+  }).then(function(raw){
+    return ctx.decodeAudioData(raw.slice(0)).then(function(buffer){
+      pad.buffer = buffer;
+      pad.rawArrayBuffer = raw;
+      pad.fileName = fileName;
+      pad.loading = false;
+      refreshAllUI();
+      if (pad.onSaveHook) pad.onSaveHook();
+      if (onLoaded) onLoaded();
+    });
+  }).catch(function(){
+    pad.loading = false;
+    refreshAllUI();
+  });
+}
+
 function openFilePicker(pad, onLoaded){
   const input = el('input', { type: 'file', accept: 'audio/*', style: 'display:none' });
   input.addEventListener('change', function(e){
@@ -1323,7 +1386,7 @@ function buildSoundPadCell(k){
     pad.buffer ? loopIcon : null,
     cornerIcon,
     el('div', { class: 'key-cell-label', text: k.label }),
-    el('div', { class: 'key-cell-sub', text: pad.buffer ? pad.fileName : (pad.fileName ? '\u26A0 Re-upload' : 'Tap to upload') })
+    el('div', { class: 'key-cell-sub', text: pad.loading ? 'Loading\u2026' : (pad.buffer ? pad.fileName : (pad.fileName ? '\u26A0 Re-upload' : 'Tap to load')) })
   ]);
   pad.el = wrap;
   return wrap;
@@ -1339,7 +1402,21 @@ function flashEl(elm){
 
 function onSoundPadClick(pad){
   if (pad.loading) return;
-  if (!pad.buffer){ openFilePicker(pad, function(){ scheduleSoundPadSave(pad.mode, pad.category); }); return; }
+  if (!pad.buffer){
+    pad.loading = true;
+    refreshAllUI();
+    githubPadManifestPromise.then(function(){
+      pad.loading = false;
+      const remote = githubPadUrlMap[normalizePadKeyToken(pad.category)];
+      if (remote){
+        loadAudioFromUrl(remote.url, pad, remote.fileName, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
+      } else {
+        refreshAllUI();
+        openFilePicker(pad, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
+      }
+    });
+    return;
+  }
   if (pad.isPlaying) stopSoundPad(pad);
   else startSoundPad(pad);
 }
