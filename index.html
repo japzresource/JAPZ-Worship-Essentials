@@ -1089,7 +1089,8 @@ function makeSoundPad(catId, mode){
   return {
     id: 'sp-' + mode + '-' + catId, category: catId, mode: mode || 'major', name: catId,
     buffer: null, rawArrayBuffer: null, fileName: '', loopEnabled: false,
-    isPlaying: false, loading: false, loadError: false, playOnLoad: false, source: null, el: null
+    isPlaying: false, loading: false, loadError: false, playOnLoad: false, source: null,
+    gainNode: null, _loopTimer: null, _stopTimer: null, el: null
   };
 }
 function makeEditablePad(prefix, i, defaultName){
@@ -1348,24 +1349,45 @@ function loadGithubPadManifest(){
 }
 const githubPadManifestPromise = loadGithubPadManifest();
 
+function wait(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+
+// Fetches + decodes a URL with automatic retries (with backoff), since a
+// single dropped connection on a large WAV (common when several pads fetch
+// at once) used to permanently mark a pad "Load failed" even though the
+// file itself is fine. Transient network hiccups now just get retried
+// silently before giving up.
+function fetchAndDecodeWithRetry(url, attempts){
+  attempts = attempts || 3;
+  function attempt(n){
+    return fetch(url, { cache: 'force-cache' }).then(function(r){
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.arrayBuffer();
+    }).then(function(raw){
+      return ctx.decodeAudioData(raw.slice(0)).then(function(buffer){
+        return { buffer: buffer, raw: raw };
+      });
+    }).catch(function(err){
+      if (n >= attempts - 1) throw err;
+      const backoffMs = 350 * Math.pow(2, n) + Math.random() * 200;
+      return wait(backoffMs).then(function(){ return attempt(n + 1); });
+    });
+  }
+  return attempt(0);
+}
+
 function loadAudioFromUrl(url, pad, fileName, onLoaded){
   ensureAudio();
   pad.loading = true;
   pad.loadError = false;
   refreshAllUI();
-  fetch(url).then(function(r){
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.arrayBuffer();
-  }).then(function(raw){
-    return ctx.decodeAudioData(raw.slice(0)).then(function(buffer){
-      pad.buffer = buffer;
-      pad.rawArrayBuffer = raw;
-      pad.fileName = fileName;
-      pad.loading = false;
-      refreshAllUI();
-      if (pad.onSaveHook) pad.onSaveHook();
-      if (onLoaded) onLoaded();
-    });
+  fetchAndDecodeWithRetry(url, 4).then(function(result){
+    pad.buffer = result.buffer;
+    pad.rawArrayBuffer = result.raw;
+    pad.fileName = fileName;
+    pad.loading = false;
+    refreshAllUI();
+    if (pad.onSaveHook) pad.onSaveHook();
+    if (onLoaded) onLoaded();
   }).catch(function(err){
     pad.loading = false;
     pad.loadError = true;
@@ -1388,20 +1410,37 @@ function loadAudioFromUrl(url, pad, fileName, onLoaded){
 function preloadGithubSoundPads(){
   ensureAudio();
   const decodeCache = {}; // key id -> Promise<{buffer, raw, fileName} | null>
+  // Firing all 12 keys' large WAV fetches at once is what was causing the
+  // random "Load failed" pads — the browser/CDN starts choking connections
+  // under that much simultaneous large-media traffic. Pulling requests
+  // through a small concurrency pool (plus the retry-with-backoff in
+  // fetchAndDecodeWithRetry) makes every pad load reliably instead.
+  const PRELOAD_CONCURRENCY = 3;
+  let active = 0;
+  const queue = [];
+  function runNext(){
+    if (!queue.length || active >= PRELOAD_CONCURRENCY) return;
+    active++;
+    const job = queue.shift();
+    job().then(function(){ active--; runNext(); }).catch(function(){ active--; runNext(); });
+  }
+  function enqueue(job){
+    queue.push(job);
+    runNext();
+  }
   function fetchDecode(key){
     if (decodeCache[key]) return decodeCache[key];
     const remote = githubPadUrlMap[key];
     if (!remote){ decodeCache[key] = Promise.resolve(null); return decodeCache[key]; }
-    decodeCache[key] = fetch(remote.url).then(function(r){
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.arrayBuffer();
-    }).then(function(raw){
-      return ctx.decodeAudioData(raw.slice(0)).then(function(buffer){
-        return { buffer: buffer, raw: raw, fileName: remote.fileName };
+    decodeCache[key] = new Promise(function(resolve){
+      enqueue(function(){
+        return fetchAndDecodeWithRetry(remote.url, 4).then(function(result){
+          resolve({ buffer: result.buffer, raw: result.raw, fileName: remote.fileName });
+        }).catch(function(err){
+          console.warn('Preload failed for pad "' + key + '":', err);
+          resolve(null);
+        });
       });
-    }).catch(function(err){
-      console.warn('Preload failed for pad "' + key + '":', err);
-      return null;
     });
     return decodeCache[key];
   }
@@ -1507,12 +1546,8 @@ function buildSoundPadCell(k){
   if (pad.loading) classes.push('loading');
 
   const loopIcon = el('button', {
-    class: 'corner-icon left' + (pad.loopEnabled ? ' on' : ''), html: svgIcon('loop', 11), title: 'Loop while held',
+    class: 'corner-icon left' + (pad.loopEnabled ? ' on' : ''), html: svgIcon('loop', 11), title: pad.loopEnabled ? 'Looping seamlessly (tap to disable)' : 'Loop this pad',
     onClick: function(e){ e.stopPropagation(); pad.loopEnabled = !pad.loopEnabled; renderSoundPadsUI(); scheduleSoundPadSave(pad.mode, pad.category); }
-  });
-  const cornerIcon = el('button', {
-    class: 'corner-icon right', html: svgIcon(pad.buffer ? 'edit' : 'upload', 11), title: pad.buffer ? 'Replace sound' : 'Upload sound',
-    onClick: function(e){ e.stopPropagation(); openFilePicker(pad, function(){ scheduleSoundPadSave(pad.mode, pad.category); }); }
   });
 
   const wrap = el('div', {
@@ -1520,9 +1555,8 @@ function buildSoundPadCell(k){
     onClick: function(e){ flashEl(wrap); onSoundPadClick(pad); }
   }, [
     pad.buffer ? loopIcon : null,
-    cornerIcon,
     el('div', { class: 'key-cell-label', text: k.label }),
-    el('div', { class: 'key-cell-sub', text: pad.loading ? (pad.playOnLoad ? 'Loading\u2026 will play' : 'Loading\u2026') : (pad.buffer ? '' : (pad.loadError ? '\u26A0 Load failed \u2014 tap to retry' : (pad.fileName ? '\u26A0 Re-upload' : 'Tap to play'))) })
+    el('div', { class: 'key-cell-sub', text: pad.loading ? (pad.playOnLoad ? 'Loading\u2026 will play' : 'Loading\u2026') : (pad.buffer ? '' : (pad.loadError ? '\u26A0 Load failed \u2014 tap to retry' : 'Tap to play')) })
   ]);
   pad.el = wrap;
   return wrap;
@@ -1555,23 +1589,119 @@ function onSoundPadClick(pad){
   if (pad.isPlaying) stopSoundPad(pad);
   else startSoundPad(pad);
 }
+
+/* ============================================================
+   SOUND PAD PLAYBACK — seamless looping + key-change crossfade
+   Only one Sound Pad ("key") is meant to be sounding at a time.
+   Two distinct crossfades happen here:
+     1. KEY_CHANGE_FADE — when the user taps a different key while
+        one is already playing, the old key fades out and the new
+        one fades in together over this many seconds, instead of a
+        hard cut.
+     2. Internal loop crossfade — if a pad's own Loop toggle is on
+        and nothing else was pressed before it reaches its end, it
+        seamlessly restarts itself: the tail of the current playthrough
+        fades out at the same time the next playthrough fades in, so
+        the loop point has no click/gap. Native AudioBufferSourceNode
+        looping is not used for this because it just repeats the raw
+        buffer with no fade, which pops at the seam.
+============================================================ */
+const KEY_CHANGE_FADE = 5;      // seconds — crossfade when switching to a different key
+const LOOP_XFADE_MAX = 2.5;     // seconds — max crossfade at a pad's own internal loop point
+let activeSoundPad = null;      // the pad currently considered "the" sounding key
+
+function clearPadTimers(pad){
+  if (pad._loopTimer){ clearTimeout(pad._loopTimer); pad._loopTimer = null; }
+  if (pad._stopTimer){ clearTimeout(pad._stopTimer); pad._stopTimer = null; }
+}
+
+// Starts one "generation" (playthrough) of pad.buffer, fading its gain in
+// over fadeSeconds. If pad.loopEnabled, schedules the next generation to
+// begin (and crossfade in) before this one ends, so playback continues
+// indefinitely with no cut — until stopSoundPad() is called.
+function playSoundPadGeneration(pad, fadeSeconds){
+  const buffer = pad.buffer;
+  if (!buffer) return;
+  const dur = buffer.duration;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const gainNode = ctx.createGain();
+  src.connect(gainNode);
+  gainNode.connect(state.channels.soundpad.input);
+
+  const now = ctx.currentTime;
+  const fadeIn = Math.max(fadeSeconds || 0.03, 0.03);
+  gainNode.gain.setValueAtTime(0.0001, now);
+  gainNode.gain.exponentialRampToValueAtTime(1, now + Math.min(fadeIn, Math.max(dur - 0.05, 0.03)));
+  src.start(now);
+
+  pad.source = src;
+  pad.gainNode = gainNode;
+
+  src.onended = function(){
+    if (pad.source === src){
+      pad.isPlaying = false; pad.source = null; pad.gainNode = null;
+      if (activeSoundPad === pad) activeSoundPad = null;
+      updateSoundPadVisual(pad);
+    }
+  };
+
+  const loopXfade = pad.loopEnabled ? Math.min(LOOP_XFADE_MAX, dur / 3) : 0;
+  if (loopXfade > 0.05){
+    const fadeOutStart = Math.max(now + 0.02, now + dur - loopXfade);
+    gainNode.gain.setValueAtTime(1, fadeOutStart);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, fadeOutStart + loopXfade);
+    // Kick off the next generation just before this one's tail fade begins,
+    // so the new playthrough's fade-in overlaps the old one's fade-out —
+    // no silence, no cut.
+    const msUntilNext = Math.max(0, (dur - loopXfade) * 1000);
+    pad._loopTimer = setTimeout(function(){
+      if (pad.source !== src || !pad.isPlaying) return; // stopped or switched away meanwhile
+      playSoundPadGeneration(pad, loopXfade);
+    }, msUntilNext);
+    // Free this generation's source node shortly after its fade-out completes.
+    pad._stopTimer = setTimeout(function(){ try{ src.stop(); }catch(e){} }, dur * 1000 + 150);
+  }
+}
+
 function startSoundPad(pad){
   ensureAudio();
-  const src = ctx.createBufferSource();
-  src.buffer = pad.buffer;
-  src.loop = pad.loopEnabled;
-  src.connect(state.channels.soundpad.input);
-  src.onended = function(){
-    if (pad.source === src){ pad.isPlaying = false; pad.source = null; updateSoundPadVisual(pad); }
-  };
-  src.start();
-  pad.source = src; pad.isPlaying = true;
+  const switchingKeys = activeSoundPad && activeSoundPad !== pad && activeSoundPad.isPlaying;
+  if (switchingKeys) fadeOutAndStopSoundPad(activeSoundPad, KEY_CHANGE_FADE);
+  clearPadTimers(pad);
+  playSoundPadGeneration(pad, switchingKeys ? KEY_CHANGE_FADE : 0.04);
+  pad.isPlaying = true;
+  activeSoundPad = pad;
   updateSoundPadVisual(pad);
 }
-function stopSoundPad(pad){
-  if (pad.source){ try { pad.source.onended = null; pad.source.stop(); } catch(e){} pad.source = null; }
-  pad.isPlaying = false;
+
+// Fades a pad's current generation out over fadeSeconds, then stops it —
+// used both for the 5s key-change crossfade and by stopAllAudio.
+function fadeOutAndStopSoundPad(pad, fadeSeconds){
+  clearPadTimers(pad);
+  const src = pad.source, gainNode = pad.gainNode;
+  if (gainNode && ctx){
+    const now = ctx.currentTime;
+    try {
+      gainNode.gain.cancelScheduledValues(now);
+      const cur = gainNode.gain.value || 1;
+      gainNode.gain.setValueAtTime(cur, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(fadeSeconds, 0.05));
+    } catch(e){}
+  }
+  if (src){
+    src.onended = null;
+    setTimeout(function(){ try{ src.stop(); }catch(e){} }, Math.max(fadeSeconds, 0.05) * 1000 + 60);
+  }
+  pad.source = null; pad.gainNode = null; pad.isPlaying = false;
+  if (activeSoundPad === pad) activeSoundPad = null;
   updateSoundPadVisual(pad);
+}
+
+function stopSoundPad(pad){
+  // Quick fade (not the full 5s) — this is the user explicitly silencing
+  // this key, not switching to another one.
+  fadeOutAndStopSoundPad(pad, 0.08);
 }
 function updateSoundPadVisual(pad){
   if (!pad.el) return;
