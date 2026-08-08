@@ -186,7 +186,8 @@ button:disabled{ opacity:0.35; pointer-events:none; }
   position:relative; aspect-ratio:1/1; border-radius:12px; background:var(--card); border:2px solid var(--border-strong);
   color:var(--text-muted); font-family:var(--font-display); font-weight:700; font-size:19px;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; overflow:hidden;
-  transition:transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  --key-fade:0.15s;
+  transition:transform 0.08s ease, box-shadow var(--key-fade) ease, border-color var(--key-fade) ease, background var(--key-fade) ease, color var(--key-fade) ease;
 }
 .key-cell:hover{ border-color:rgba(216,31,46,0.5); color:var(--text); }
 .key-cell:active{ transform:scale(0.97); }
@@ -194,9 +195,9 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 .key-cell.loading{ opacity:0.5; pointer-events:none; }
 .key-cell.playing{ box-shadow:0 0 0 2px var(--flash-color), 0 0 26px var(--flash-color); border-color:transparent; background:linear-gradient(160deg, rgba(179,18,31,0.28), var(--card)); }
 .key-cell.flash{ animation:padflash 0.25s ease; }
-.key-cell-label{ font-family:var(--font-display); font-weight:700; font-size:19px; }
+.key-cell-label{ font-family:var(--font-display); font-weight:700; font-size:19px; transition:color var(--key-fade,0.15s) ease; }
 .key-cell.playing .key-cell-label{ color:#fff; }
-.key-cell-sub{ font-family:var(--font-mono); font-size:8.5px; color:var(--text-dim); max-width:88%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.key-cell-sub{ font-family:var(--font-mono); font-size:8.5px; color:var(--text-dim); max-width:88%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:color var(--key-fade,0.15s) ease; }
 .key-cell.playing .key-cell-sub{ color:rgba(255,255,255,0.75); }
 .piano-current-label{ font-family:var(--font-mono); font-size:11px; color:var(--text-muted); text-align:center; margin-top:10px; }
 .piano-current-label b{ color:var(--accent-glow); }
@@ -1545,22 +1546,20 @@ function buildSoundPadCell(k){
   if (pad.isPlaying) classes.push('playing');
   if (pad.loading) classes.push('loading');
 
-  const loopIcon = el('button', {
-    class: 'corner-icon left' + (pad.loopEnabled ? ' on' : ''), html: svgIcon('loop', 11), title: pad.loopEnabled ? 'Looping seamlessly (tap to disable)' : 'Loop this pad',
-    onClick: function(e){ e.stopPropagation(); pad.loopEnabled = !pad.loopEnabled; renderSoundPadsUI(); scheduleSoundPadSave(pad.mode, pad.category); }
-  });
-
+  // No corner icons on Sound Pad cells — sounds auto-load from the library
+  // and every pad loops seamlessly by itself, so there's nothing to upload,
+  // replace, or toggle here. Just the key and its state.
   const wrap = el('div', {
     class: classes.join(' '), title: k.sub ? (k.label + ' / ' + k.sub) : k.label,
     onClick: function(e){ flashEl(wrap); onSoundPadClick(pad); }
   }, [
-    pad.buffer ? loopIcon : null,
     el('div', { class: 'key-cell-label', text: k.label }),
     el('div', { class: 'key-cell-sub', text: pad.loading ? (pad.playOnLoad ? 'Loading\u2026 will play' : 'Loading\u2026') : (pad.buffer ? '' : (pad.loadError ? '\u26A0 Load failed \u2014 tap to retry' : 'Tap to play')) })
   ]);
   pad.el = wrap;
   return wrap;
 }
+
 
 function flashEl(elm){
   if (settings.lightStyle && settings.lightStyle !== 'flash') return;
@@ -1593,21 +1592,30 @@ function onSoundPadClick(pad){
 /* ============================================================
    SOUND PAD PLAYBACK — seamless looping + key-change crossfade
    Only one Sound Pad ("key") is meant to be sounding at a time.
-   Two distinct crossfades happen here:
+   These are ambient background pads, so once started a key keeps
+   sustaining indefinitely on its own — it must NEVER go silent on
+   its own just because its file reached the end. Two crossfades:
      1. KEY_CHANGE_FADE — when the user taps a different key while
-        one is already playing, the old key fades out and the new
-        one fades in together over this many seconds, instead of a
-        hard cut.
-     2. Internal loop crossfade — if a pad's own Loop toggle is on
-        and nothing else was pressed before it reaches its end, it
-        seamlessly restarts itself: the tail of the current playthrough
-        fades out at the same time the next playthrough fades in, so
-        the loop point has no click/gap. Native AudioBufferSourceNode
-        looping is not used for this because it just repeats the raw
-        buffer with no fade, which pops at the seam.
+        one is already playing, the old key fades out while the new
+        one fades in together over this many seconds — never a hard
+        cut, and the old pad's audio is never actually stopped until
+        that fade has finished.
+     2. Internal loop crossfade — every time a pad's own buffer is
+        about to reach its end (and the user hasn't pressed anything
+        else), it seamlessly restarts itself: the tail of the current
+        playthrough fades out at the same time the next playthrough's
+        fade-in begins, so the loop point has no click/gap and the
+        sound never actually cuts out. Native AudioBufferSourceNode
+        looping is not used for this — it just repeats the raw buffer
+        with no fade, which pops at the seam.
+   The on-screen glow for each key fades in perfect sync with its
+   audio: updateSoundPadVisual() is always given the exact same
+   fade duration as the gain ramp it mirrors, using a CSS custom
+   property so the transition timing matches exactly.
 ============================================================ */
-const KEY_CHANGE_FADE = 5;      // seconds — crossfade when switching to a different key
-const LOOP_XFADE_MAX = 2.5;     // seconds — max crossfade at a pad's own internal loop point
+const KEY_CHANGE_FADE = 5;      // seconds — crossfade (audio + visual) when switching to a different key
+const LOOP_XFADE_MAX = 2.5;     // seconds — crossfade at a pad's own internal loop point
+const QUICK_FADE = 0.08;        // seconds — user explicitly stopping this exact key
 let activeSoundPad = null;      // the pad currently considered "the" sounding key
 
 function clearPadTimers(pad){
@@ -1616,9 +1624,11 @@ function clearPadTimers(pad){
 }
 
 // Starts one "generation" (playthrough) of pad.buffer, fading its gain in
-// over fadeSeconds. If pad.loopEnabled, schedules the next generation to
-// begin (and crossfade in) before this one ends, so playback continues
-// indefinitely with no cut — until stopSoundPad() is called.
+// over fadeSeconds. Always schedules the next generation to begin (and
+// crossfade in) before this one ends, so playback continues indefinitely
+// with no cut — the only ways a pad ever goes quiet are stopSoundPad()
+// (user tapped this same key again) or being crossfaded out by a different
+// key being pressed. Reaching the end of the file is never one of them.
 function playSoundPadGeneration(pad, fadeSeconds){
   const buffer = pad.buffer;
   if (!buffer) return;
@@ -1638,30 +1648,32 @@ function playSoundPadGeneration(pad, fadeSeconds){
   pad.source = src;
   pad.gainNode = gainNode;
 
+  // Safety net only — under normal operation the loop timer below always
+  // starts the next generation before this one's onended could fire, so
+  // this should never actually be what silences a pad the user hasn't
+  // stopped. It only fires for real if playback is explicitly stopped.
   src.onended = function(){
     if (pad.source === src){
       pad.isPlaying = false; pad.source = null; pad.gainNode = null;
       if (activeSoundPad === pad) activeSoundPad = null;
-      updateSoundPadVisual(pad);
+      updateSoundPadVisual(pad, QUICK_FADE);
     }
   };
 
-  const loopXfade = pad.loopEnabled ? Math.min(LOOP_XFADE_MAX, dur / 3) : 0;
-  if (loopXfade > 0.05){
-    const fadeOutStart = Math.max(now + 0.02, now + dur - loopXfade);
-    gainNode.gain.setValueAtTime(1, fadeOutStart);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, fadeOutStart + loopXfade);
-    // Kick off the next generation just before this one's tail fade begins,
-    // so the new playthrough's fade-in overlaps the old one's fade-out —
-    // no silence, no cut.
-    const msUntilNext = Math.max(0, (dur - loopXfade) * 1000);
-    pad._loopTimer = setTimeout(function(){
-      if (pad.source !== src || !pad.isPlaying) return; // stopped or switched away meanwhile
-      playSoundPadGeneration(pad, loopXfade);
-    }, msUntilNext);
-    // Free this generation's source node shortly after its fade-out completes.
-    pad._stopTimer = setTimeout(function(){ try{ src.stop(); }catch(e){} }, dur * 1000 + 150);
-  }
+  const loopXfade = Math.max(0.05, Math.min(LOOP_XFADE_MAX, dur / 3));
+  const fadeOutStart = Math.max(now + 0.02, now + dur - loopXfade);
+  gainNode.gain.setValueAtTime(1, fadeOutStart);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, fadeOutStart + loopXfade);
+  // Kick off the next generation just before this one's tail fade begins,
+  // so the new playthrough's fade-in overlaps the old one's fade-out —
+  // no silence, no cut, no dependence on the user pressing anything.
+  const msUntilNext = Math.max(0, (dur - loopXfade) * 1000);
+  pad._loopTimer = setTimeout(function(){
+    if (pad.source !== src || !pad.isPlaying) return; // stopped or switched away meanwhile
+    playSoundPadGeneration(pad, loopXfade);
+  }, msUntilNext);
+  // Free this generation's source node shortly after its fade-out completes.
+  pad._stopTimer = setTimeout(function(){ try{ src.stop(); }catch(e){} }, dur * 1000 + 150);
 }
 
 function startSoundPad(pad){
@@ -1669,14 +1681,15 @@ function startSoundPad(pad){
   const switchingKeys = activeSoundPad && activeSoundPad !== pad && activeSoundPad.isPlaying;
   if (switchingKeys) fadeOutAndStopSoundPad(activeSoundPad, KEY_CHANGE_FADE);
   clearPadTimers(pad);
-  playSoundPadGeneration(pad, switchingKeys ? KEY_CHANGE_FADE : 0.04);
+  const fadeSeconds = switchingKeys ? KEY_CHANGE_FADE : 0.04;
+  playSoundPadGeneration(pad, fadeSeconds);
   pad.isPlaying = true;
   activeSoundPad = pad;
-  updateSoundPadVisual(pad);
+  updateSoundPadVisual(pad, fadeSeconds);
 }
 
-// Fades a pad's current generation out over fadeSeconds, then stops it —
-// used both for the 5s key-change crossfade and by stopAllAudio.
+// Fades a pad's current generation out over fadeSeconds, then stops it once
+// the fade has actually finished — the audio itself is never cut short.
 function fadeOutAndStopSoundPad(pad, fadeSeconds){
   clearPadTimers(pad);
   const src = pad.source, gainNode = pad.gainNode;
@@ -1695,16 +1708,22 @@ function fadeOutAndStopSoundPad(pad, fadeSeconds){
   }
   pad.source = null; pad.gainNode = null; pad.isPlaying = false;
   if (activeSoundPad === pad) activeSoundPad = null;
-  updateSoundPadVisual(pad);
+  updateSoundPadVisual(pad, fadeSeconds);
 }
 
 function stopSoundPad(pad){
   // Quick fade (not the full 5s) — this is the user explicitly silencing
   // this key, not switching to another one.
-  fadeOutAndStopSoundPad(pad, 0.08);
+  fadeOutAndStopSoundPad(pad, QUICK_FADE);
 }
-function updateSoundPadVisual(pad){
+
+// Mirrors a pad's audio-gain envelope on screen: the "playing" glow
+// transitions over the exact same duration as the audio fade it represents,
+// so a key-change crossfade visibly fades one key out while fading the
+// other in, instead of an instant on/off flip.
+function updateSoundPadVisual(pad, fadeSeconds){
   if (!pad.el) return;
+  pad.el.style.setProperty('--key-fade', Math.max(fadeSeconds || 0.15, 0.05) + 's');
   pad.el.classList.toggle('playing', pad.isPlaying);
 }
 
