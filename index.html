@@ -1171,9 +1171,16 @@ state.musicPads = [];
 /* ============================================================
    AUDIO ENGINE
 ============================================================ */
+// Returns a Promise that only resolves once ctx actually exists AND is
+// actually running. Callers that need audio to be truly ready (not just
+// "resume() was called") should await this instead of calling it bare —
+// see startSoundPad() for why this matters.
 function ensureAudio(){
   if (!ctx) initAudio();
-  if (ctx && ctx.state === 'suspended') ctx.resume();
+  if (ctx && ctx.state === 'suspended'){
+    return ctx.resume().catch(function(){});
+  }
+  return Promise.resolve();
 }
 
 function getImpulse(sizeKey){
@@ -1303,6 +1310,37 @@ function initAudio(){
 
   MIX_BUS_KEYS.forEach(function(key){
     state.channels[key].analyser.connect(masterBus.input);
+  });
+
+  // KEEP-ALIVE — prevents the "UI flashes on instantly, sound arrives ~1-2s
+  // later" bug. Browsers (Chrome/Android WebViews especially) auto-suspend
+  // an AudioContext after a stretch of true silence to save power. Every
+  // pad press was calling ctx.resume() at that point, but resume() is
+  // async and was never awaited before scheduling playback — so the source
+  // node got scheduled and the on-screen glow lit up immediately, while the
+  // actual sound only started once resume() finished (a real, sometimes
+  // multi-second, delay). A permanently-running oscillator at an
+  // imperceptibly low (but non-zero — true digital silence still gets
+  // treated as "idle" by the auto-suspend heuristic) gain keeps the
+  // context continuously "producing audio", so it never has a reason to
+  // suspend in the first place and resume() always resolves instantly.
+  const keepAliveOsc = ctx.createOscillator();
+  const keepAliveGain = ctx.createGain();
+  keepAliveOsc.frequency.value = 20; // sub-audible
+  keepAliveGain.gain.value = 0.00001; // effectively silent, but not exact zero
+  keepAliveOsc.connect(keepAliveGain);
+  keepAliveGain.connect(ctx.destination); // straight to destination — bypasses mute/fader entirely
+  try { keepAliveOsc.start(); } catch(e){}
+
+  // Defensive extra layer on top of the keep-alive: opportunistically
+  // resume the context the moment the page gets any user gesture or comes
+  // back into view, so it's already 'running' well before a pad is
+  // actually pressed, instead of only reacting at press-time.
+  ['pointerdown', 'keydown', 'touchstart'].forEach(function(evt){
+    document.addEventListener(evt, function(){ if (ctx && ctx.state === 'suspended') ctx.resume().catch(function(){}); }, { passive: true });
+  });
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden && ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
   });
 }
 
@@ -1790,7 +1828,13 @@ function playSoundPadGeneration(pad, fadeSeconds, atTime){
 }
 
 function startSoundPad(pad){
-  ensureAudio();
+  // Wait for the context to genuinely be 'running' before scheduling
+  // anything or touching the visual — with the keep-alive oscillator in
+  // initAudio() this resolves essentially the same tick almost always, but
+  // it guarantees audio and UI are never scheduled a resume-cycle apart.
+  ensureAudio().then(function(){ startSoundPadNow(pad); });
+}
+function startSoundPadNow(pad){
   if (pendingKeySwitchTimer){ clearTimeout(pendingKeySwitchTimer); pendingKeySwitchTimer = null; }
   const outgoing = (activeSoundPad && activeSoundPad !== pad && activeSoundPad.isPlaying) ? activeSoundPad : null;
   const tcfg = settings.spTransition;
