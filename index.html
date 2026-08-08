@@ -856,6 +856,12 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
           <span>s</span>
         </div>
         <div class="settings-note" style="margin-top:6px;">How each key's own audio loops seamlessly under itself, independent of key-change transitions above.</div>
+        <div class="transition-duration-row" style="margin-top:8px;">
+          <span>Turn-off fade (tap same key again)</span>
+          <input type="number" id="sp-transition-stopfade" min="0.5" max="30" step="0.5">
+          <span>s</span>
+        </div>
+        <div class="settings-note" style="margin-top:6px;">How long a key takes to fade out when you tap that same key again to silence it — a slow wind-down instead of a hard stop.</div>
         <div class="light-style-row" id="sp-duck-row" style="display:flex; gap:8px; margin-top:14px;"></div>
         <div id="sp-duck-amount-wrap" class="transition-duration-row" style="margin-top:8px;">
           <span>Duck Loops/Music to</span>
@@ -1124,7 +1130,8 @@ const settings = {
     duration: 5,          // seconds — key-change fade length (crossfade & wait modes)
     loopXfade: 2.5,        // seconds — a pad's own internal loop-point crossfade
     duckOthers: false,     // briefly duck Loops + Music while a key transition happens
-    duckAmount: 40          // % — how far to duck (40 = duck down to 40% volume)
+    duckAmount: 40,          // % — how far to duck (40 = duck down to 40% volume)
+    stopFade: 10             // seconds — fade length when the user taps the SAME key again to turn it off
   }
 };
 
@@ -1830,10 +1837,13 @@ function fadeOutAndStopSoundPad(pad, fadeSeconds, atTime){
 }
 
 function stopSoundPad(pad){
-  // Quick fade (not the full 5s) — this is the user explicitly silencing
-  // this key, not switching to another one.
+  // The user is deliberately turning this exact key off (tapped it again),
+  // not switching to another one — so it gets its own slow fade-out
+  // (configurable in Settings) rather than the instant "cut" used for
+  // internal cleanup elsewhere.
   if (pendingKeySwitchTimer){ clearTimeout(pendingKeySwitchTimer); pendingKeySwitchTimer = null; }
-  fadeOutAndStopSoundPad(pad, QUICK_FADE);
+  const fadeSeconds = Math.max(0.2, settings.spTransition.stopFade || 10);
+  fadeOutAndStopSoundPad(pad, fadeSeconds);
 }
 
 // Mirrors a pad's audio-gain envelope on screen: the "playing" glow
@@ -3311,6 +3321,10 @@ function renderSPTransitionSection(){
   const loopXInput = document.getElementById('sp-transition-loopxfade');
   loopXInput.value = tcfg.loopXfade;
   loopXInput.oninput = function(){ tcfg.loopXfade = clamp(Number(loopXInput.value) || 2.5, 0.2, 6); saveSettings(); };
+
+  const stopFadeInput = document.getElementById('sp-transition-stopfade');
+  stopFadeInput.value = tcfg.stopFade;
+  stopFadeInput.oninput = function(){ tcfg.stopFade = clamp(Number(stopFadeInput.value) || 10, 0.5, 30); saveSettings(); };
 
   const duckRow = document.getElementById('sp-duck-row');
   duckRow.innerHTML = '';
