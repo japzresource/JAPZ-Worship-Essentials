@@ -1243,15 +1243,33 @@ function initAudio(){
    picker — so pressing "A" automatically plays "[A] - Sound Walls.wav"
    with no manual upload needed. Re-uploading a pad still overrides it.
 ============================================================ */
-const GITHUB_PADS_API_URL = 'https://api.github.com/repos/japzresource/JAPZ-Worship-Essentials/contents/Japz%20Pads';
+const GITHUB_REPO_OWNER = 'japzresource';
+const GITHUB_REPO_NAME = 'JAPZ-Worship-Essentials';
+const GITHUB_REPO_BRANCH = 'main';
+const GITHUB_PADS_FOLDER = 'Japz Pads';
+const GITHUB_PADS_API_URL = 'https://api.github.com/repos/' + GITHUB_REPO_OWNER + '/' + GITHUB_REPO_NAME + '/contents/' + encodeURIComponent(GITHUB_PADS_FOLDER);
 let githubPadUrlMap = {}; // normalized key id ('A', 'A#', ...) -> { url, fileName }
+let githubPadManifestLoaded = false;
+const FLAT_TO_SHARP = { AB:'G#', BB:'A#', DB:'C#', EB:'D#', GB:'F#' };
 function normalizePadKeyToken(raw){
-  return String(raw || '')
+  let t = String(raw || '')
     .trim()
     .toUpperCase()
     .replace(/\u266F/g, '#')   // musical sharp symbol -> '#'
+    .replace(/\u266D/g, 'B')   // musical flat symbol -> 'b' (as a trailing letter)
     .replace(/SHARP/g, '#')
+    .replace(/FLAT/g, 'B')
     .replace(/\s+/g, '');
+  if (FLAT_TO_SHARP[t]) t = FLAT_TO_SHARP[t]; // e.g. 'AB' -> 'G#', 'BB' -> 'A#', 'EB' -> 'D#'
+  return t;
+}
+function buildLfsMediaUrl(path){
+  // Git-LFS-tracked files return only a tiny text "pointer" (oid + size) from
+  // raw.githubusercontent.com and from the Contents API's download_url field.
+  // media.githubusercontent.com is GitHub's LFS-resolving endpoint — it's what
+  // actually returns the real audio bytes for a public LFS object, no auth needed.
+  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+  return 'https://media.githubusercontent.com/media/' + GITHUB_REPO_OWNER + '/' + GITHUB_REPO_NAME + '/' + GITHUB_REPO_BRANCH + '/' + encodedPath;
 }
 function loadGithubPadManifest(){
   return fetch(GITHUB_PADS_API_URL, { headers: { 'Accept': 'application/vnd.github+json' } })
@@ -1265,19 +1283,21 @@ function loadGithubPadManifest(){
         if (!m) return;
         const key = normalizePadKeyToken(m[1]);
         if (!key) return;
-        githubPadUrlMap[key] = { url: item.download_url, fileName: item.name };
+        githubPadUrlMap[key] = { url: buildLfsMediaUrl(item.path), fileName: item.name };
       });
     })
-    .catch(function(){ /* offline, blocked, or repo unreachable — pads just fall back to manual upload */ });
+    .catch(function(){ /* offline, blocked, or repo unreachable — pads just fall back to manual upload */ })
+    .then(function(){ githubPadManifestLoaded = true; });
 }
 const githubPadManifestPromise = loadGithubPadManifest();
 
 function loadAudioFromUrl(url, pad, fileName, onLoaded){
   ensureAudio();
   pad.loading = true;
+  pad.loadError = false;
   refreshAllUI();
   fetch(url).then(function(r){
-    if (!r.ok) throw new Error('fetch failed');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.arrayBuffer();
   }).then(function(raw){
     return ctx.decodeAudioData(raw.slice(0)).then(function(buffer){
@@ -1289,9 +1309,11 @@ function loadAudioFromUrl(url, pad, fileName, onLoaded){
       if (pad.onSaveHook) pad.onSaveHook();
       if (onLoaded) onLoaded();
     });
-  }).catch(function(){
+  }).catch(function(err){
     pad.loading = false;
+    pad.loadError = true;
     refreshAllUI();
+    console.error('Auto-load failed for pad "' + fileName + '":', err);
   });
 }
 
@@ -1386,7 +1408,7 @@ function buildSoundPadCell(k){
     pad.buffer ? loopIcon : null,
     cornerIcon,
     el('div', { class: 'key-cell-label', text: k.label }),
-    el('div', { class: 'key-cell-sub', text: pad.loading ? 'Loading\u2026' : (pad.buffer ? pad.fileName : (pad.fileName ? '\u26A0 Re-upload' : 'Tap to load')) })
+    el('div', { class: 'key-cell-sub', text: pad.loading ? 'Loading\u2026' : (pad.buffer ? pad.fileName : (pad.loadError ? '\u26A0 Load failed \u2014 tap to retry' : (pad.fileName ? '\u26A0 Re-upload' : 'Tap to load'))) })
   ]);
   pad.el = wrap;
   return wrap;
@@ -1403,18 +1425,17 @@ function flashEl(elm){
 function onSoundPadClick(pad){
   if (pad.loading) return;
   if (!pad.buffer){
-    pad.loading = true;
-    refreshAllUI();
-    githubPadManifestPromise.then(function(){
-      pad.loading = false;
+    if (githubPadManifestLoaded){
       const remote = githubPadUrlMap[normalizePadKeyToken(pad.category)];
-      if (remote){
-        loadAudioFromUrl(remote.url, pad, remote.fileName, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
-      } else {
-        refreshAllUI();
-        openFilePicker(pad, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
-      }
-    });
+      if (remote) loadAudioFromUrl(remote.url, pad, remote.fileName, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
+      else openFilePicker(pad, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
+    } else {
+      // Library listing hasn't finished loading yet (rare, right after page
+      // load) — fall back to manual upload immediately rather than waiting on
+      // the network, since opening the file dialog must happen synchronously
+      // within this click or the browser will silently refuse to show it.
+      openFilePicker(pad, function(){ scheduleSoundPadSave(pad.mode, pad.category); });
+    }
     return;
   }
   if (pad.isPlaying) stopSoundPad(pad);
