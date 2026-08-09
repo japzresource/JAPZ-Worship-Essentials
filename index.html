@@ -1040,11 +1040,81 @@ function base64ToArrayBuffer(b64){
 }
 
 /* ============================================================
-   STORAGE (window.storage — only available when rendered as a
-   Claude artifact. Falls back to in-memory only otherwise.)
+   STORAGE
+   window.storage is a Claude-specific API that only exists when this
+   page is rendered as a Claude artifact — it won't exist at all on a
+   plain static host like GitHub Pages. So this file also ships its
+   own storage backend, built on IndexedDB (chosen over localStorage
+   because localStorage caps out around 5-10MB total and is
+   synchronous/string-only, which doesn't work for the base64 audio
+   blobs this app saves). Whichever backend is present, everything
+   above this block talks to the same storageGet/storageSet/etc.
+   functions, so the rest of the app never needs to know which one
+   is actually in use.
 ============================================================ */
-const hasStorage = !!(window.storage && typeof window.storage.get === 'function');
-const MAX_STORABLE_AUDIO_BYTES = 3500000; // ~3.5MB raw file -> stays under the 5MB/key limit once base64-encoded
+const hasStorage = true; // one of the two backends below is always available
+const usingClaudeStorage = !!(window.storage && typeof window.storage.get === 'function');
+
+/* --- IndexedDB backend (used outside the Claude artifact runtime, e.g. on GitHub Pages) --- */
+const IDB_NAME = 'japz-worship-essentials';
+const IDB_STORE = 'kv';
+let idbPromise = null;
+function openIdb(){
+  if (idbPromise) return idbPromise;
+  idbPromise = new Promise(function(resolve, reject){
+    if (!window.indexedDB){ reject(new Error('IndexedDB unavailable')); return; }
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = function(){ req.result.createObjectStore(IDB_STORE); };
+    req.onsuccess = function(){ resolve(req.result); };
+    req.onerror = function(){ reject(req.error); };
+  });
+  return idbPromise;
+}
+function idbSet(key, value){
+  return openIdb().then(function(db){
+    return new Promise(function(resolve, reject){
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(value, key);
+      tx.oncomplete = function(){ resolve(true); };
+      tx.onerror = function(){ reject(tx.error); };
+    });
+  });
+}
+function idbGet(key){
+  return openIdb().then(function(db){
+    return new Promise(function(resolve, reject){
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = function(){ resolve(req.result != null ? req.result : null); };
+      req.onerror = function(){ reject(req.error); };
+    });
+  });
+}
+function idbDelete(key){
+  return openIdb().then(function(db){
+    return new Promise(function(resolve, reject){
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(key);
+      tx.oncomplete = function(){ resolve(true); };
+      tx.onerror = function(){ reject(tx.error); };
+    });
+  });
+}
+function idbListKeys(prefix){
+  return openIdb().then(function(db){
+    return new Promise(function(resolve, reject){
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).getAllKeys();
+      req.onsuccess = function(){
+        const keys = (req.result || []).filter(function(k){ return !prefix || String(k).indexOf(prefix) === 0; });
+        resolve(keys);
+      };
+      req.onerror = function(){ reject(req.error); };
+    });
+  });
+}
+
+const MAX_STORABLE_AUDIO_BYTES = 3500000; // ~3.5MB raw file -> stays under the 5MB/key limit once base64-encoded (Claude storage backend only; IndexedDB has no such cap, but the limit is kept uniform across both backends)
 
 /* Every logged-in username gets its own private key namespace, so two
    different people using the same site never see each other's sounds,
@@ -1059,25 +1129,37 @@ function nsKey(key, shared){
 }
 
 function storageSet(key, value, shared){
-  if (!hasStorage) return Promise.resolve(false);
   const payload = (typeof value === 'string') ? value : JSON.stringify(value);
-  return window.storage.set(nsKey(key, shared), payload, !!shared).then(function(){ return true; }).catch(function(){ return false; });
+  const k = nsKey(key, shared);
+  if (usingClaudeStorage){
+    return window.storage.set(k, payload, !!shared).then(function(){ return true; }).catch(function(){ return false; });
+  }
+  return idbSet(k, payload).then(function(){ return true; }).catch(function(){ return false; });
 }
 function storageGet(key, shared){
-  if (!hasStorage) return Promise.resolve(null);
-  return window.storage.get(nsKey(key, shared), !!shared).then(function(r){ return r ? r.value : null; }).catch(function(){ return null; });
+  const k = nsKey(key, shared);
+  if (usingClaudeStorage){
+    return window.storage.get(k, !!shared).then(function(r){ return r ? r.value : null; }).catch(function(){ return null; });
+  }
+  return idbGet(k).catch(function(){ return null; });
 }
 function storageDelete(key, shared){
-  if (!hasStorage) return Promise.resolve(false);
-  return window.storage.delete(nsKey(key, shared), !!shared).then(function(){ return true; }).catch(function(){ return false; });
+  const k = nsKey(key, shared);
+  if (usingClaudeStorage){
+    return window.storage.delete(k, !!shared).then(function(){ return true; }).catch(function(){ return false; });
+  }
+  return idbDelete(k).then(function(){ return true; }).catch(function(){ return false; });
 }
 function storageList(prefix, shared){
-  if (!hasStorage) return Promise.resolve([]);
   const nsPrefix = shared ? (prefix || '') : ('acct:' + (currentUserSlug || 'guest') + ':' + (prefix || ''));
-  return window.storage.list(nsPrefix, !!shared).then(function(r){
-    if (!r) return [];
-    // strip the namespace back off so callers see the same plain keys they passed in
-    return r.keys.map(function(k){ return shared ? k : k.replace(/^acct:[^:]*:/, ''); });
+  if (usingClaudeStorage){
+    return window.storage.list(nsPrefix, !!shared).then(function(r){
+      if (!r) return [];
+      return r.keys.map(function(k){ return shared ? k : k.replace(/^acct:[^:]*:/, ''); });
+    }).catch(function(){ return []; });
+  }
+  return idbListKeys(nsPrefix).then(function(keys){
+    return keys.map(function(k){ return shared ? k : String(k).replace(/^acct:[^:]*:/, ''); });
   }).catch(function(){ return []; });
 }
 function markSaving(){
@@ -1087,8 +1169,8 @@ function markSaving(){
   ind.classList.remove('active');
   clearTimeout(markSaving._t);
   markSaving._t = setTimeout(function(){
-    ind.textContent = hasStorage ? 'Saved to this session' : 'Not saved (storage unavailable)';
-    if (hasStorage) ind.classList.add('active');
+    ind.textContent = 'Saved to this session';
+    ind.classList.add('active');
   }, 500);
 }
 
