@@ -92,7 +92,8 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 }
 #password-screen.show{ opacity:1; visibility:visible; pointer-events:auto; }
 #password-screen.hide{ opacity:0; visibility:hidden; pointer-events:none; }
-.pw-card{ width:min(380px,88vw); text-align:center; }
+.pw-card{ width:min(380px,88vw); text-align:center; transition:opacity 0.32s ease, transform 0.32s ease; }
+.pw-card.leaving{ opacity:0; transform:scale(0.97); pointer-events:none; }
 .pw-title{ font-family:var(--font-display); font-weight:700; font-size:clamp(22px,5vw,30px); letter-spacing:0.05em; text-transform:uppercase; color:#fff; }
 .pw-sub{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.3em; color:var(--text-dim); margin-top:8px; text-transform:uppercase; }
 .pw-divider{ height:1px; background:var(--border); margin:26px 0 22px; }
@@ -5408,19 +5409,34 @@ function attemptEnter(){
   }
   errEl.textContent = '';
   currentUserSlug = slugifyUsername(name);
-  // Make the intro screen instantly opaque black BEFORE the password screen
-  // starts its own fade-out. Both overlays previously started fading at the
-  // same time (password 1->0 over 0.6s, intro 0->1 over 1s), which left a
-  // window where neither was fully opaque, letting the colorful page
-  // background bleed through instead of a clean black-to-black transition.
-  // Snapping the intro screen to opaque first (no transition) guarantees
-  // there's always solid black behind the password screen as it fades away.
+  // Make the intro screen instantly opaque black BEFORE anything else moves —
+  // guarantees solid black is already sitting behind the password screen the
+  // whole time, so nothing but pure black is ever exposed underneath it.
   const introScreenEl = document.getElementById('intro-screen');
   introScreenEl.style.transition = 'none';
   introScreenEl.classList.add('show');
   void introScreenEl.offsetWidth; // force the no-transition opacity:1 to apply immediately
   introScreenEl.style.transition = '';
-  document.getElementById('password-screen').classList.add('hide');
+  // Fade OUT just the card's own content (title, fields, the red "Enter
+  // Studio" button) quickly and locally, rather than fading the whole
+  // password screen's opacity. The screen's background is already solid
+  // black (#000) sitting on top of an equally solid black intro screen, so
+  // cross-fading the ENTIRE screen used to make that red gradient button
+  // visibly bleed/ghost through as translucent red-on-black while it
+  // dissolved. Fading only the card content — against a background that
+  // never changes — reads as a clean, quick dismissal instead, and once
+  // it's gone the screen behind it is already pure black, so swapping to
+  // the intro screen is an imperceptible black-to-black cut, not a fade
+  // that has to hide any color.
+  const pwScreenEl = document.getElementById('password-screen');
+  const pwCardEl = pwScreenEl.querySelector('.pw-card');
+  if (pwCardEl) pwCardEl.classList.add('leaving');
+  setTimeout(function(){
+    pwScreenEl.style.transition = 'none';
+    pwScreenEl.classList.add('hide');
+    void pwScreenEl.offsetWidth;
+    pwScreenEl.style.transition = '';
+  }, 320);
   ensureAudio();
   const restorePromise = restoreAllState().catch(function(){});
   // Start fetching every Sound Pad's audio now, in the background, so by the
