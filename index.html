@@ -481,6 +481,10 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .fader-input::-webkit-slider-runnable-track{ height:4px; background:linear-gradient(90deg,var(--panel),var(--accent-deep),var(--accent)); border-radius:2px; }
 .fader-input::-webkit-slider-thumb{ -webkit-appearance:none; width:32px; height:16px; border-radius:4px; background:linear-gradient(180deg,#3d3a42,#131114); border:1px solid var(--accent); margin-top:-6px; box-shadow:0 0 6px rgba(255,39,67,0.5); }
 .fader-input::-moz-range-thumb{ width:32px; height:16px; border-radius:4px; background:linear-gradient(180deg,#3d3a42,#131114); border:1px solid var(--accent); }
+.fader-wrap.is-muted .fader-db{ color:var(--accent-glow); text-shadow:0 0 8px rgba(255,39,67,0.55); letter-spacing:0.08em; }
+.fader-wrap.is-muted .fader-input::-webkit-slider-thumb{ border-color:var(--accent-glow); box-shadow:0 0 8px rgba(255,39,67,0.7); opacity:0.6; }
+.fader-wrap.is-muted .fader-input::-moz-range-thumb{ border-color:var(--accent-glow); opacity:0.6; }
+.fader-wrap.is-muted .fader-track{ opacity:0.6; }
 .meter{ display:flex; flex-direction:column-reverse; gap:2px; height:70px; width:18px; }
 .meter-seg{ flex:1; border-radius:2px; background:#1c1a1f; }
 .meter-seg.lit.seg-green{ background:var(--green); box-shadow:0 0 5px rgba(55,224,140,0.6); }
@@ -1276,14 +1280,22 @@ function buildChannel(name, opts){
   const postGain = ctx.createGain(); postGain.gain.value = 1;
   pan.connect(postGain); postGain.connect(fader);
 
+  // Mute is its own gain stage, completely separate from the fader gain.
+  // This is what lets a channel go silent without ever touching
+  // fader.gain.value (and therefore never moving the fader UI) — the fader
+  // keeps remembering exactly where it was left, muted or not, just like
+  // pulling the mute button on a real console instead of pulling the fader down.
+  const muteGain = ctx.createGain(); muteGain.gain.value = 1;
+  fader.connect(muteGain);
+
   const soloGain = ctx.createGain(); soloGain.gain.value = 1;
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.6;
   const specAnalyser = ctx.createAnalyser(); specAnalyser.fftSize = 2048; specAnalyser.smoothingTimeConstant = 0.75;
-  fader.connect(soloGain);
+  muteGain.connect(soloGain);
   soloGain.connect(analyser);
   soloGain.connect(specAnalyser);
 
-  chain.pan = pan; chain.postGain = postGain; chain.fader = fader; chain.soloGain = soloGain;
+  chain.pan = pan; chain.postGain = postGain; chain.fader = fader; chain.muteGain = muteGain; chain.soloGain = soloGain;
   chain.analyser = analyser; chain.specAnalyser = specAnalyser; chain.meterEl = null;
   return chain;
 }
@@ -1306,7 +1318,9 @@ function initAudio(){
   masterBus.limiter = limiter; masterBus.limiterEnabled = false; masterBus.limiterCeiling = -3;
   masterBus.analyser.disconnect();
   masterBus.fader.disconnect();
-  masterBus.fader.connect(limiter);
+  masterBus.muteGain.disconnect();
+  masterBus.fader.connect(masterBus.muteGain);
+  masterBus.muteGain.connect(limiter);
   limiter.connect(masterBus.analyser);
   limiter.connect(masterBus.specAnalyser);
   masterBus.analyser.connect(ctx.destination);
@@ -3531,16 +3545,25 @@ function buildFaderScale(ch){
   return wrap;
 }
 function buildFader(ch, faderKey){
-  const wrap = el('div', { class: 'fader-wrap' });
-  const dbLabel = el('div', { class: 'fader-db', text: gainToDbLabel(ch.fader.gain.value) });
+  const wrap = el('div', { class: 'fader-wrap' + (ch.muted ? ' is-muted' : '') });
+  const dbLabel = el('div', { class: 'fader-db', text: ch.muted ? 'MUTED' : gainToDbLabel(ch.fader.gain.value) });
+  // The slider's value is the fader's physical position (0-1000, i.e. 0-100%
+  // of travel in tenths for smooth dragging) — NOT the gain directly. Gain
+  // is derived from position through the same taper as the printed dB
+  // scale, so the cap always sits next to the dB it's actually producing.
+  const startPos = gainToFaderPos(ch.fader.gain.value);
   const input = el('input', {
-    type: 'range', class: 'fader-input', min: '0', max: '150', value: String(Math.round(ch.fader.gain.value * 100))
+    type: 'range', class: 'fader-input', min: '0', max: '1000', step: '1', value: String(Math.round(startPos * 10))
   });
   input.addEventListener('input', function(){
-    const v = Number(input.value) / 100;
+    const pos = Number(input.value) / 10;
+    const v = faderPosToGain(pos);
     ch.fader.gain.value = v;
     ch.lastFaderValue = v;
-    dbLabel.textContent = gainToDbLabel(v);
+    // Moving the fader while muted still repositions it for when it's
+    // unmuted, but the readout keeps saying MUTED rather than flashing a
+    // dB number that isn't actually reaching the output.
+    dbLabel.textContent = ch.muted ? 'MUTED' : gainToDbLabel(v);
   });
   input.addEventListener('change', function(){ saveMixSettings(); });
   const track = el('div', { class: 'fader-track' }, [input]);
@@ -3566,17 +3589,15 @@ function buildMeterEl(){
 function toggleMute(channelKey, btn){
   const ch = channelKey === 'master' ? masterBus : state.channels[channelKey];
   ch.muted = !ch.muted;
-  if (ch.muted){
-    ch.lastFaderValue = ch.fader.gain.value > 0 ? ch.fader.gain.value : ch.lastFaderValue;
-    ch.fader.gain.value = 0;
-  } else {
-    ch.fader.gain.value = ch.lastFaderValue || 1;
-  }
+  // Only the dedicated mute gain stage moves — the fader itself, and its
+  // stored value, are left completely alone. The fader stays exactly where
+  // you set it; mute is just a switch on top of it, same as a real console.
+  ch.muteGain.gain.value = ch.muted ? 0 : 1;
   btn.classList.toggle('on', ch.muted);
   const strip = btn.closest('.mix-strip');
   if (strip && strip._faderWrap){
-    strip._faderWrap._dbLabel.textContent = gainToDbLabel(ch.fader.gain.value);
-    strip._faderWrap._input.value = String(Math.round(ch.fader.gain.value * 100));
+    strip._faderWrap.classList.toggle('is-muted', ch.muted);
+    strip._faderWrap._dbLabel.textContent = ch.muted ? 'MUTED' : gainToDbLabel(ch.fader.gain.value);
   }
   saveMixSettings();
 }
@@ -3607,8 +3628,9 @@ function syncFaderUI(){
     const ch = state.channels[key];
     const strip = document.querySelector('.mix-strip[data-channel="' + key + '"]');
     if (!strip || !strip._faderWrap) return;
-    strip._faderWrap._dbLabel.textContent = gainToDbLabel(ch.fader.gain.value);
-    strip._faderWrap._input.value = String(Math.round(ch.fader.gain.value * 100));
+    strip._faderWrap._dbLabel.textContent = ch.muted ? 'MUTED' : gainToDbLabel(ch.fader.gain.value);
+    strip._faderWrap._input.value = String(Math.round(gainToFaderPos(ch.fader.gain.value) * 10));
+    strip._faderWrap.classList.toggle('is-muted', ch.muted);
   });
 }
 
@@ -3768,7 +3790,7 @@ function buildChannelStrip(channelKey, label){
   strip.appendChild(faderWrap);
   strip._faderWrap = faderWrap;
 
-  const muteBtn = el('button', { class: 'mute-btn', text: 'MUTE' });
+  const muteBtn = el('button', { class: 'mute-btn' + (ch.muted ? ' on' : ''), text: 'MUTE' });
   muteBtn.addEventListener('click', function(){ toggleMute(channelKey, muteBtn); });
   const soloBtn = el('button', { class: 'solo-btn', text: 'SOLO' });
   soloBtn.addEventListener('click', function(){ toggleSolo(channelKey, soloBtn); });
@@ -3825,7 +3847,7 @@ function buildMasterStrip(){
   strip.appendChild(faderWrap);
   strip._faderWrap = faderWrap;
 
-  const muteBtn = el('button', { class: 'mute-btn', text: 'MUTE' });
+  const muteBtn = el('button', { class: 'mute-btn' + (masterBus.muted ? ' on' : ''), text: 'MUTE' });
   muteBtn.addEventListener('click', function(){ toggleMute('master', muteBtn); });
   strip.appendChild(el('div', { class: 'strip-buttons' }, [muteBtn]));
 
@@ -4281,6 +4303,30 @@ function drawMiniEqCurve(canvas, ch){
 function dbToMeterLevel(db){
   return 1 - (dbToMeterPct(db) / 100);
 }
+// ------------------------------------------------------------------
+// FADER TAPER — makes the fader cap's physical position match the
+// printed dB scale next to it, the way a real console (e.g. a Behringer
+// X32/XR18) is calibrated: the ticks are evenly spaced in dB, and the
+// cap sitting next to a tick actually produces that dB value. Before
+// this, the slider's value was used as gain directly, so "0dB" printed
+// on the ruler and the position that actually produced 0dB gain didn't
+// line up — worst right where it matters most, in the lower part of
+// the throw where small moves need to track dB accurately.
+// pos: 0 (fader all the way down) .. 100 (fader all the way up).
+// Uses the exact same METER_DB_MIN/METER_DB_MAX range as the ruler.
+function faderPosToDb(pos){
+  return METER_DB_MIN + (clamp(pos, 0, 100) / 100) * (METER_DB_MAX - METER_DB_MIN);
+}
+function faderPosToGain(pos){
+  // Bottom sliver of travel is true off, same as a real fader's hard-down stop.
+  if (pos <= 0.5) return 0;
+  return Math.pow(10, faderPosToDb(pos) / 20);
+}
+function gainToFaderPos(gain){
+  if (gain <= 0.0005) return 0;
+  const db = 20 * Math.log10(gain);
+  return clamp(((db - METER_DB_MIN) / (METER_DB_MAX - METER_DB_MIN)) * 100, 0, 100);
+}
 function computeChannelLevel(analyser){
   if (!analyser) return 0;
   if (!analyser._levelBuf || analyser._levelBuf.length !== analyser.fftSize) analyser._levelBuf = new Uint8Array(analyser.fftSize);
@@ -4630,6 +4676,7 @@ function restoreMixSettings(){
       ch.fader.gain.value = s.fader != null ? s.fader : 1;
       ch.lastFaderValue = s.lastFaderValue != null ? s.lastFaderValue : 1;
       ch.muted = !!s.muted;
+      ch.muteGain.gain.value = ch.muted ? 0 : 1;
     });
     if (snap.master){
       masterBus.pan.pan.value = snap.master.pan != null ? snap.master.pan : 0;
@@ -4640,6 +4687,7 @@ function restoreMixSettings(){
       masterBus.fader.gain.value = snap.master.fader != null ? snap.master.fader : 1;
       masterBus.lastFaderValue = snap.master.lastFaderValue != null ? snap.master.lastFaderValue : 1;
       masterBus.muted = !!snap.master.muted;
+      masterBus.muteGain.gain.value = masterBus.muted ? 0 : 1;
     }
   });
 }
