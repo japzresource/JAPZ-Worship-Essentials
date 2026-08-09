@@ -59,6 +59,16 @@ button:disabled{ opacity:0.35; pointer-events:none; }
   *{ animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
 }
 
+/* ============================= LOADING SCREEN (plain) ============================= */
+#loading-screen{
+  position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+  background:#000; transition:opacity 0.5s ease, visibility 0.5s;
+}
+#loading-screen.hide{ opacity:0; visibility:hidden; pointer-events:none; }
+.loading-bar-track{ width:min(320px,80vw); height:4px; border-radius:3px; background:#1a1a1a; overflow:hidden; }
+.loading-bar-fill{ height:100%; width:0%; border-radius:3px; background:var(--grad-accent); box-shadow:0 0 10px rgba(255,39,67,0.55); transition:width 0.18s ease-out; }
+.loading-msg{ font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--text-muted); }
+
 /* ============================= PASSWORD GATE (pure black) ============================= */
 .brand-mark{
   font-family:var(--font-display); font-weight:700; font-size:clamp(26px,6vw,48px); letter-spacing:0.06em; text-transform:uppercase;
@@ -73,6 +83,7 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 #password-screen.hide{ opacity:0; visibility:hidden; pointer-events:none; }
 .pw-card{ width:min(380px,88vw); text-align:center; transition:opacity 0.32s ease, transform 0.32s ease; }
 .pw-card.leaving{ opacity:0; transform:scale(0.97); pointer-events:none; }
+.pw-card.pre-enter{ opacity:0; transform:scale(0.97); }
 .pw-title{ font-family:var(--font-display); font-weight:700; font-size:clamp(22px,5vw,30px); letter-spacing:0.05em; text-transform:uppercase; color:#fff; }
 .pw-sub{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.3em; color:var(--text-dim); margin-top:8px; text-transform:uppercase; }
 .pw-divider{ height:1px; background:var(--border); margin:26px 0 22px; }
@@ -590,9 +601,15 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 </head>
 <body data-light-style="flash">
 
+<!-- ============================= LOADING SCREEN ============================= -->
+<div id="loading-screen">
+  <div class="loading-bar-track"><div class="loading-bar-fill" id="loading-bar-fill"></div></div>
+  <div class="loading-msg" id="loading-msg">Preparing web…</div>
+</div>
+
 <!-- ============================= PASSWORD GATE ============================= -->
-<div id="password-screen" class="show">
-  <div class="pw-card">
+<div id="password-screen">
+  <div class="pw-card pre-enter">
     <div class="pw-title">Worship Essentials</div>
     <div class="pw-sub">Enter Password To Continue</div>
     <div class="pw-divider"></div>
@@ -5322,6 +5339,50 @@ document.getElementById('preset-delete-btn').addEventListener('click', function(
 
 
 /* ============================================================
+   LOADING SCREEN — plain bar + rotating message, no logo/animation
+============================================================ */
+function startLoadingSequence(){
+  const bar = document.getElementById('loading-bar-fill');
+  const msgEl = document.getElementById('loading-msg');
+  const messages = ['Preparing web…', 'Preparing sound pads…', 'Preparing soundboard…', 'Preparing loops…', 'Preparing music…', 'Preparing mix…', 'Almost ready…'];
+  let msgIdx = 0;
+  msgEl.textContent = messages[0];
+  const msgInterval = setInterval(function(){ msgIdx = (msgIdx + 1) % messages.length; msgEl.textContent = messages[msgIdx]; }, 500);
+  let p = 0;
+  const interval = setInterval(function(){
+    p += Math.random() * 9 + 4;
+    if (p >= 100) p = 100;
+    bar.style.width = p + '%';
+    if (p >= 100){
+      clearInterval(interval); clearInterval(msgInterval);
+      setTimeout(function(){
+        document.getElementById('loading-screen').classList.add('hide');
+        // Snap the password screen to fully visible INSTANTLY (its background
+        // is solid black, same as the loading screen behind it, so this is
+        // an imperceptible black-to-black cut) rather than cross-fading the
+        // whole screen's opacity — that used to fade the red "Enter Studio"
+        // button/gradient in as one translucent block along with everything
+        // else, which read as a reddish gradient materializing out of black.
+        // The card itself starts hidden (see .pw-card.pre-enter) and only
+        // it fades in afterward, against a background that never moves —
+        // a clean local fade-in instead of a full-screen color cross-fade.
+        const pwScreen = document.getElementById('password-screen');
+        pwScreen.style.transition = 'none';
+        pwScreen.classList.add('show');
+        void pwScreen.offsetWidth;
+        pwScreen.style.transition = '';
+        const pwCard = pwScreen.querySelector('.pw-card');
+        if (pwCard){
+          requestAnimationFrame(function(){
+            requestAnimationFrame(function(){ pwCard.classList.remove('pre-enter'); });
+          });
+        }
+      }, 300);
+    }
+  }, 220);
+}
+
+/* ============================================================
    PASSWORD GATE
 ============================================================ */
 const STUDIO_PASSWORD = '1';
@@ -5491,6 +5552,7 @@ renderLoopsUI();
 renderMusicUI();
 initAllMultiviewSplitters();
 startMiniEqAnimationLoop();
+startLoadingSequence();
 
 window.addEventListener('resize', function(){
   if (currentEditingPad && currentEditingPad.buffer && document.getElementById('pad-editor-modal').classList.contains('show')){
