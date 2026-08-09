@@ -59,33 +59,12 @@ button:disabled{ opacity:0.35; pointer-events:none; }
   *{ animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
 }
 
-/* ============================= LOADING SCREEN ============================= */
-#loading-screen{
-  position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  background:var(--grad-bg); transition:opacity 0.6s ease, visibility 0.6s;
-}
-#loading-screen.hide{ opacity:0; visibility:hidden; pointer-events:none; }
+/* ============================= PASSWORD GATE (pure black) ============================= */
 .brand-mark{
   font-family:var(--font-display); font-weight:700; font-size:clamp(26px,6vw,48px); letter-spacing:0.06em; text-transform:uppercase;
   background:linear-gradient(135deg,#fff 0%, #d9838a 40%, var(--accent) 100%);
   -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 40px rgba(255,39,67,0.25);
 }
-.brand-sub{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.35em; color:var(--text-muted); margin-top:8px; text-transform:uppercase; }
-.eq-deco{ display:flex; align-items:flex-end; gap:5px; height:34px; margin:26px 0 20px; }
-.eq-deco span{ width:5px; border-radius:2px; background:linear-gradient(180deg, var(--accent-glow), var(--accent-deep)); animation:eqbounce 1.1s ease-in-out infinite; }
-.eq-deco span:nth-child(1){ height:40%; animation-delay:0s; }
-.eq-deco span:nth-child(2){ height:80%; animation-delay:0.12s; }
-.eq-deco span:nth-child(3){ height:55%; animation-delay:0.24s; }
-.eq-deco span:nth-child(4){ height:95%; animation-delay:0.36s; }
-.eq-deco span:nth-child(5){ height:65%; animation-delay:0.48s; }
-.eq-deco span:nth-child(6){ height:35%; animation-delay:0.6s; }
-@keyframes eqbounce{ 0%,100%{ transform:scaleY(0.4); } 50%{ transform:scaleY(1); } }
-.loading-bar-track{ width:min(360px,80vw); height:6px; border-radius:4px; background:var(--panel); border:1px solid var(--border); overflow:hidden; box-shadow:inset 0 1px 4px rgba(0,0,0,0.6); }
-.loading-bar-fill{ height:100%; width:0%; border-radius:4px; background:var(--grad-accent); box-shadow:0 0 12px rgba(255,39,67,0.6); transition:width 0.18s ease-out; }
-.loading-meta{ display:flex; justify-content:space-between; width:min(360px,80vw); margin-top:10px; font-family:var(--font-mono); font-size:11px; color:var(--text-muted); }
-#loading-pct{ color:var(--accent-glow); }
-
-/* ============================= PASSWORD GATE (pure black) ============================= */
 #password-screen{
   position:fixed; inset:0; z-index:95; display:flex; align-items:center; justify-content:center;
   background:#000000; opacity:0; visibility:hidden; pointer-events:none; transition:opacity 0.6s ease, visibility 0.6s;
@@ -611,20 +590,8 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 </head>
 <body data-light-style="flash">
 
-<!-- ============================= LOADING SCREEN ============================= -->
-<div id="loading-screen">
-  <div class="brand-mark">Worship Essentials</div>
-  <div class="brand-sub">Live Performance Pad Engine</div>
-  <div class="eq-deco"><span></span><span></span><span></span><span></span><span></span><span></span></div>
-  <div class="loading-bar-track"><div class="loading-bar-fill" id="loading-bar-fill"></div></div>
-  <div class="loading-meta">
-    <span id="loading-msg">Warming up the pad engine…</span>
-    <span id="loading-pct">0%</span>
-  </div>
-</div>
-
 <!-- ============================= PASSWORD GATE ============================= -->
-<div id="password-screen">
+<div id="password-screen" class="show">
   <div class="pw-card">
     <div class="pw-title">Worship Essentials</div>
     <div class="pw-sub">Enter Password To Continue</div>
@@ -5355,33 +5322,6 @@ document.getElementById('preset-delete-btn').addEventListener('click', function(
 
 
 /* ============================================================
-   LOADING SCREEN
-============================================================ */
-function startLoadingSequence(){
-  const bar = document.getElementById('loading-bar-fill');
-  const pctEl = document.getElementById('loading-pct');
-  const msgEl = document.getElementById('loading-msg');
-  const messages = ['Warming up the pad engine…', 'Calibrating the mixer…', 'Tuning the reverb tank…', 'Waking up the drum pads…', 'Spooling the loop deck…', 'Almost there…'];
-  let msgIdx = 0;
-  msgEl.textContent = messages[0];
-  const msgInterval = setInterval(function(){ msgIdx = (msgIdx + 1) % messages.length; msgEl.textContent = messages[msgIdx]; }, 550);
-  let p = 0;
-  const interval = setInterval(function(){
-    p += Math.random() * 9 + 4;
-    if (p >= 100) p = 100;
-    bar.style.width = p + '%';
-    pctEl.textContent = Math.floor(p) + '%';
-    if (p >= 100){
-      clearInterval(interval); clearInterval(msgInterval);
-      setTimeout(function(){
-        document.getElementById('loading-screen').classList.add('hide');
-        document.getElementById('password-screen').classList.add('show');
-      }, 350);
-    }
-  }, 220);
-}
-
-/* ============================================================
    PASSWORD GATE
 ============================================================ */
 const STUDIO_PASSWORD = '1';
@@ -5551,7 +5491,6 @@ renderLoopsUI();
 renderMusicUI();
 initAllMultiviewSplitters();
 startMiniEqAnimationLoop();
-startLoadingSequence();
 
 window.addEventListener('resize', function(){
   if (currentEditingPad && currentEditingPad.buffer && document.getElementById('pad-editor-modal').classList.contains('show')){
