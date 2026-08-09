@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Worship Essentials</title>
+<title>Worship Essentials by JAPZ</title>
 <link rel="icon" href="japzlogo.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -556,7 +556,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 }
 .multiview-panel-header{
   flex:0 0 auto; font-family:var(--font-display); font-weight:700; font-size:14px; letter-spacing:0.08em; text-transform:uppercase;
-  color:var(--accent-glow); padding:11px 16px; border-bottom:1px solid var(--border-strong); background:var(--panel);
+  color:var(--accent-glow); padding:11px 16px; border-bottom:2px solid var(--accent); background:var(--panel);
   border-radius:14px 14px 0 0; text-shadow:0 0 18px rgba(255,39,67,0.35);
 }
 .multiview-panel-body{ flex:1; min-height:0; overflow:auto; padding:10px 12px; }
@@ -587,10 +587,18 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
    actually made the Mix tile impossible to see without scrolling: every
    channel was showing its full EQ curve + shape knob by default. */
 .multiview-panel-body .mix-strips{ gap:10px; padding:2px 2px 8px; }
-.multiview-panel-body .mix-strip{ flex-basis:150px; padding:10px 8px; gap:8px; }
+.multiview-panel-body .mix-strip{ flex-basis:150px; padding:10px 8px; gap:6px; }
+.multiview-panel-body .strip-label{ font-size:11px; }
+.multiview-panel-body .strip-knob-row{ gap:6px; }
+.multiview-panel-body .fx-module{ padding-top:6px; }
+.multiview-panel-body .fx-module-title{ font-size:9px; }
 .multiview-panel-body .fx-module.expanded .mini-eq-canvas,
-.multiview-panel-body .fx-module.expanded .fx-module-body > .knob-wrap{ display:none; }
-.multiview-panel-body .fader-track{ height:88px; }
+.multiview-panel-body .fx-module.expanded .fx-module-body .knob{ display:none; }
+.multiview-panel-body .fx-module.expanded .fx-module-body{ padding-top:6px; gap:6px; }
+.multiview-panel-body .eq-open-btn{ padding:4px 8px; font-size:9.5px; }
+.multiview-panel-body .fader-wrap{ gap:4px; }
+.multiview-panel-body .fader-track{ height:64px; }
+.multiview-panel-body .strip-buttons{ gap:6px; }
 .multiview-panel-body .output-select-wrap{ display:none; }
 
 /* ============================= RESPONSIVE ============================= */
@@ -657,7 +665,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
   <header class="app-header">
     <div class="header-left">
       <div class="logo-block">
-        <div class="logo-text">JAPZ<span class="accent">.</span>Worship Essentials</div>
+        <div class="logo-text">Worship Essential<span class="accent">.</span>by JAPZ</div>
         <div class="logo-sub">Sound Pads · Soundboard · Loops · Mix</div>
       </div>
       <span id="welcome-name"></span>
