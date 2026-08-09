@@ -451,7 +451,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .mix-strips{ display:flex; gap:18px; overflow-x:auto; padding:6px 2px 14px; align-items:flex-start; }
 .mix-strip{ flex:0 0 190px; display:flex; flex-direction:column; align-items:center; gap:12px; background:var(--panel-2); border:1px solid var(--border-strong); border-radius:14px; padding:16px 12px; }
 .mix-strip.master-strip{ background:linear-gradient(180deg,#241318,#161014); border-color:rgba(255,39,67,0.3); }
-.mix-strip.sends-master-strip{ border-style:dashed; border-color:var(--border-strong); justify-content:center; }
+.mix-strip.sends-master-strip{ border-style:dashed; border-color:var(--border-strong); }
 .mix-strip{ transition:opacity 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
 .mix-strip.solo-active{ border-color:#fff; box-shadow:0 0 0 1px #fff, 0 0 20px rgba(255,255,255,0.15); }
 .mix-strip.solo-dimmed{ opacity:0.5; }
@@ -1412,10 +1412,16 @@ function buildChannel(name, opts){
   // toggleSendsMasterMute() write the same values into every strip's
   // pair at once, so the one shared fader/mute control trims or silences
   // every active send everywhere, on top of each send's own volume slider.
+  // sendsMasterGain is the GAIN knob on the Sends Master strip — a coarse
+  // 0-200% pre-gain stage, applied before the Sends Master fader (its 0-150%
+  // trim), same as a channel's own GAIN knob sits ahead of its fader.
+  const sendsMasterGain = ctx.createGain(); sendsMasterGain.gain.value = 1;
   const sendsMasterTap = ctx.createGain(); sendsMasterTap.gain.value = 1;
   const sendsMasterMuteGain = ctx.createGain(); sendsMasterMuteGain.gain.value = 1;
-  sendTap.connect(sendsMasterTap);
+  sendTap.connect(sendsMasterGain);
+  sendsMasterGain.connect(sendsMasterTap);
   sendsMasterTap.connect(sendsMasterMuteGain);
+  chain.sendsMasterGain = sendsMasterGain;
   chain.sendsMasterTap = sendsMasterTap;
   chain.sendsMasterMuteGain = sendsMasterMuteGain;
 
@@ -4086,6 +4092,13 @@ function buildSendsMasterStrip(){
   strip.appendChild(el('div', { class: 'strip-label', text: 'SENDS MASTER' }));
   strip.appendChild(el('div', { class: 'settings-note', style: 'margin-top:0; text-align:center;', text: 'Trims every active send at once, on top of each send\u2019s own volume slider.' }));
 
+  const gainKnob = createKnob({
+    label: 'GAIN', min: 0, max: 200, value: Math.round(state.sendsMasterGain * 100), step: 1, defaultValue: 100,
+    format: function(v){ return v + '%'; },
+    onChange: function(v){ setSendsMasterGain(v / 100); saveMixSettings(); }
+  });
+  strip.appendChild(el('div', { class: 'strip-knob-row' }, [gainKnob.el]));
+
   const sendsMasterCh = {
     fader: { gain: {
       get value(){ return state.sendsMasterLevel; },
@@ -4165,18 +4178,24 @@ function createSendTarget(){
           sendSource = sendCtx.createMediaStreamSource(streamDest.stream);
           sendSource.connect(sendCtx.destination);
         }
-        if (sendCtx.state === 'suspended') sendCtx.resume().catch(function(){});
-        if (deviceId) sendCtx.setSinkId(deviceId).catch(function(){});
-      } catch(e){}
+        if (sendCtx.state === 'suspended') sendCtx.resume().catch(function(err){ console.error('[JAPZ send] resume() failed:', err); });
+        if (deviceId) sendCtx.setSinkId(deviceId).catch(function(err){
+          console.error('[JAPZ send] setSinkId() failed for device', deviceId, err);
+          alert('Could not switch this send to the selected device — the app kept the previous one. (' + (err && err.name ? err.name : 'unknown error') + ')');
+        });
+      } catch(e){ console.error('[JAPZ send] setDevice() threw:', e); }
     } else if (audioEl && audioEl.setSinkId && deviceId){
-      audioEl.setSinkId(deviceId).catch(function(){});
+      audioEl.setSinkId(deviceId).catch(function(err){
+        console.error('[JAPZ send] audioEl.setSinkId() failed for device', deviceId, err);
+        alert('Could not switch this send to the selected device — the app kept the previous one. (' + (err && err.name ? err.name : 'unknown error') + ')');
+      });
     }
   }
   function activate(){
     if (lowLatency && sendCtx && sendCtx.state === 'suspended'){
-      sendCtx.resume().catch(function(){});
+      sendCtx.resume().catch(function(err){ console.error('[JAPZ send] activate() resume() failed:', err); });
     } else if (audioEl){
-      try { const p = audioEl.play(); if (p && typeof p.catch === 'function') p.catch(function(){}); } catch(e){}
+      try { const p = audioEl.play(); if (p && typeof p.catch === 'function') p.catch(function(err){ console.error('[JAPZ send] audioEl.play() failed:', err); }); } catch(e){ console.error('[JAPZ send] audioEl.play() threw:', e); }
     }
   }
   return { gain: gain, setDevice: setDevice, activate: activate, lowLatency: lowLatency };
@@ -4189,6 +4208,7 @@ state.sends = [];
 // silence every active send at once, without merging any strip's send
 // signal into another's — see allSendsMasterTaps() below.
 state.sendsMasterLevel = 1;
+state.sendsMasterGain = 1;
 state.sendsMasterMuted = false;
 function allSendsMasterTaps(){
   const arr = MIX_BUS_KEYS.map(function(k){ return state.channels[k]; }).filter(Boolean);
@@ -4198,6 +4218,10 @@ function allSendsMasterTaps(){
 function setSendsMasterLevel(v){
   state.sendsMasterLevel = v;
   allSendsMasterTaps().forEach(function(ch){ ch.sendsMasterTap.gain.value = v; });
+}
+function setSendsMasterGain(v){
+  state.sendsMasterGain = v;
+  allSendsMasterTaps().forEach(function(ch){ ch.sendsMasterGain.gain.value = v; });
 }
 function toggleSendsMasterMute(){
   state.sendsMasterMuted = !state.sendsMasterMuted;
@@ -4963,7 +4987,7 @@ function saveMixSettings(){
     fader: masterBus.fader.gain.value, lastFaderValue: masterBus.lastFaderValue, muted: masterBus.muted,
     sends: state.sends.map(function(s){ return s ? { deviceId: s.deviceId, volume: s.volume, enabled: s.enabled } : null; })
   };
-  snapshot.sendsMaster = { level: state.sendsMasterLevel, muted: state.sendsMasterMuted };
+  snapshot.sendsMaster = { level: state.sendsMasterLevel, gain: state.sendsMasterGain, muted: state.sendsMasterMuted };
   storageSet('mix-settings', snapshot, false);
 }
 
@@ -5145,9 +5169,11 @@ function restoreMixSettings(){
     }
     if (snap.sendsMaster){
       state.sendsMasterLevel = snap.sendsMaster.level != null ? snap.sendsMaster.level : 1;
+      state.sendsMasterGain = snap.sendsMaster.gain != null ? snap.sendsMaster.gain : 1;
       state.sendsMasterMuted = !!snap.sendsMaster.muted;
       allSendsMasterTaps().forEach(function(tapCh){
         tapCh.sendsMasterTap.gain.value = state.sendsMasterLevel;
+        tapCh.sendsMasterGain.gain.value = state.sendsMasterGain;
         tapCh.sendsMasterMuteGain.gain.value = state.sendsMasterMuted ? 0 : 1;
       });
     }
@@ -5349,7 +5375,7 @@ function playIntroSequence(onDone, waitPromise){
   introScreen.classList.add('show');
   const video = document.getElementById('intro-video');
   const fallback = document.getElementById('intro-fallback');
-  let finished = false, videoWorked = false;
+  let finished = false, videoWorked = false, noVideoFrames = false;
 
   function finish(){
     if (finished) return;
@@ -5358,19 +5384,42 @@ function playIntroSequence(onDone, waitPromise){
   }
   document.getElementById('intro-skip-btn').onclick = finish;
 
-  function showFallback(){
-    if (videoWorked) return;
-    video.style.display = 'none';
+  function revealFallbackVisual(){
     fallback.style.display = 'flex';
     requestAnimationFrame(function(){
       fallback.classList.add('reveal');
       const tag = fallback.querySelector('.intro-tagline');
       if (tag) tag.classList.add('reveal');
     });
+  }
+
+  function showFallback(){
+    if (videoWorked) return;
+    video.style.display = 'none';
+    revealFallbackVisual();
     setTimeout(finish, 3600);
   }
 
-  video.addEventListener('error', function(){ showFallback(); });
+  // On some devices (older Android WebViews especially) the browser can
+  // decode this file's AUDIO track but not its VIDEO track, and will
+  // happily keep playing sound while rendering nothing — videoWidth/
+  // videoHeight stay 0 the whole time. That reads to the user as "no
+  // video, just sound". Detect it once metadata loads and swap to the
+  // text fallback (audio keeps playing normally; 'ended' below still
+  // fires and moves on) instead of leaving a blank video element up.
+  video.addEventListener('loadedmetadata', function(){
+    if (video.videoWidth === 0 || video.videoHeight === 0){
+      console.warn('[JAPZ intro] video track has no decodable frames (videoWidth/videoHeight are 0) even though playback started — likely a video-codec compatibility issue on this device (the MP4\u2019s audio track is still playing fine). Re-exporting WORSHIP ESSENTIAL.mp4 as standard H.264 (not HEVC/H.265) + AAC should fix this on affected devices.');
+      noVideoFrames = true;
+      video.style.display = 'none';
+      revealFallbackVisual();
+    }
+  });
+  video.addEventListener('error', function(){
+    const err = video.error;
+    console.error('[JAPZ intro] video failed to load.', 'src=' + video.currentSrc, err ? ('code=' + err.code) : '');
+    showFallback();
+  });
   video.addEventListener('ended', finish);
   // Call play() synchronously here (not inside an async 'canplay' handler) so it
   // still counts as triggered by the Enter Studio click — that's what lets the
@@ -5380,16 +5429,25 @@ function playIntroSequence(onDone, waitPromise){
     if (p && typeof p.then === 'function'){
       p.then(function(){
         videoWorked = true;
-        video.style.display = 'block';
-        fallback.style.display = 'none';
-      }).catch(function(){ showFallback(); });
+        if (!noVideoFrames){
+          video.style.display = 'block';
+          fallback.style.display = 'none';
+        }
+      }).catch(function(err){
+        console.error('[JAPZ intro] video.play() rejected:', err && err.name, err && err.message);
+        showFallback();
+      });
     } else {
       videoWorked = true;
-      video.style.display = 'block';
-      fallback.style.display = 'none';
+      if (!noVideoFrames){
+        video.style.display = 'block';
+        fallback.style.display = 'none';
+      }
     }
-  } catch(e){ showFallback(); }
-  setTimeout(function(){ if (!videoWorked) showFallback(); }, 1200);
+  } catch(e){ console.error('[JAPZ intro] video.play() threw:', e); showFallback(); }
+  // Safety net only — if the video hasn't started playing within a few
+  // seconds (slow connection, big file), fall back instead of hanging forever.
+  setTimeout(function(){ if (!videoWorked) showFallback(); }, 6000);
 }
 
 /* ============================================================
@@ -5417,4 +5475,4 @@ window.addEventListener('resize', function(){
 })();
 </script>
 </body>
-</html>
+</html>+
