@@ -632,7 +632,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 
 <!-- ============================= BRAND INTRO ============================= -->
 <div id="intro-screen">
-  <video id="intro-video" src="WORSHIP%20ESSENTIAL.mp4" playsinline></video>
+  <video id="intro-video" src="WORSHIP%20ESSENTIAL.mp4" playsinline disablePictureInPicture disableRemotePlayback controlsList="nodownload noremoteplayback noplaybackrate nofullscreen"></video>
   <div id="intro-fallback">
     <div class="brand-mark">Worship Essentials</div>
     <div class="intro-tagline">Sound Pads · Soundboard · Loops · Mix</div>
@@ -5466,7 +5466,7 @@ function playIntroSequence(onDone, waitPromise){
   introScreen.classList.add('show');
   const video = document.getElementById('intro-video');
   const fallback = document.getElementById('intro-fallback');
-  let finished = false, videoWorked = false, noVideoFrames = false;
+  let finished = false, videoWorked = false, noVideoFrames = false, committedToFallback = false;
 
   function finish(){
     if (finished) return;
@@ -5486,6 +5486,9 @@ function playIntroSequence(onDone, waitPromise){
 
   function showFallback(){
     if (videoWorked) return;
+    // Once we've committed to the fallback, don't reverse that decision
+    // later — see the p.then() success handler below for why.
+    committedToFallback = true;
     video.style.display = 'none';
     revealFallbackVisual();
     setTimeout(finish, 3600);
@@ -5520,6 +5523,16 @@ function playIntroSequence(onDone, waitPromise){
     if (p && typeof p.then === 'function'){
       p.then(function(){
         videoWorked = true;
+        // On a slow connection, video.play()'s promise can resolve well
+        // after the 6s safety-net below already gave up and switched to
+        // the text fallback. If we switched the display back to the video
+        // at that point, the person would see the intro flash from text
+        // back to video mid-reveal — "it stopped, then it played". Once
+        // we've committed to the fallback we stick with it: the video
+        // keeps playing (and its audio, if any) quietly underneath, same
+        // as the existing no-decodable-frames case below, and the
+        // fallback's own timer still decides when the intro ends.
+        if (committedToFallback) return;
         if (!noVideoFrames){
           video.style.display = 'block';
           fallback.style.display = 'none';
