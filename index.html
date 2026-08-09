@@ -450,6 +450,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .mix-strips{ display:flex; gap:18px; overflow-x:auto; padding:6px 2px 14px; align-items:flex-start; }
 .mix-strip{ flex:0 0 190px; display:flex; flex-direction:column; align-items:center; gap:12px; background:var(--panel-2); border:1px solid var(--border-strong); border-radius:14px; padding:16px 12px; }
 .mix-strip.master-strip{ background:linear-gradient(180deg,#241318,#161014); border-color:rgba(255,39,67,0.3); }
+.mix-strip.sends-master-strip{ border-style:dashed; border-color:var(--border-strong); justify-content:center; }
 .mix-strip{ transition:opacity 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
 .mix-strip.solo-active{ border-color:#fff; box-shadow:0 0 0 1px #fff, 0 0 20px rgba(255,255,255,0.15); }
 .mix-strip.solo-dimmed{ opacity:0.5; }
@@ -1399,6 +1400,23 @@ function buildChannel(name, opts){
   // when the channel is muted.
   const sendTap = ctx.createGain(); sendTap.gain.value = 1;
   postGain.connect(sendTap);
+
+  // SENDS MASTER — this strip's own copy of the global "Sends Master"
+  // fader (the strip between Music and Master in the Mix tab). Chained
+  // after sendTap so it never touches the main fader or main mute path,
+  // only whatever this strip is sending out. Every strip (each channel
+  // and the master bus) gets its own pair of nodes here so their sends
+  // keep going to whichever separate devices they're each set to —
+  // nothing ever gets mixed between strips — but setSendsMasterLevel()/
+  // toggleSendsMasterMute() write the same values into every strip's
+  // pair at once, so the one shared fader/mute control trims or silences
+  // every active send everywhere, on top of each send's own volume slider.
+  const sendsMasterTap = ctx.createGain(); sendsMasterTap.gain.value = 1;
+  const sendsMasterMuteGain = ctx.createGain(); sendsMasterMuteGain.gain.value = 1;
+  sendTap.connect(sendsMasterTap);
+  sendsMasterTap.connect(sendsMasterMuteGain);
+  chain.sendsMasterTap = sendsMasterTap;
+  chain.sendsMasterMuteGain = sendsMasterMuteGain;
 
   // Mute is its own gain stage, completely separate from the fader gain.
   // This is what lets a channel go silent without ever touching
@@ -4051,6 +4069,47 @@ function buildMasterStrip(){
   return strip;
 }
 
+// SENDS MASTER STRIP — sits between Music and Master. One fader that
+// scales every strip's active sends together (on top of each send's own
+// volume slider in its Sends panel), plus one Mute that silences every
+// send everywhere at once. It doesn't touch the main mix at all — pulling
+// it down only quiets what's going out to extra send devices.
+// Reuses buildFader() by handing it a stand-in "channel" whose
+// fader.gain.value getter/setter reads/writes state.sendsMasterLevel and
+// mirrors it into every real strip's own sendsMasterTap (see
+// setSendsMasterLevel), instead of driving a single shared audio node —
+// that keeps every strip's sends isolated from one another while still
+// moving together under this one control.
+function buildSendsMasterStrip(){
+  const strip = el('div', { class: 'mix-strip sends-master-strip', 'data-channel': 'sendsmaster' });
+  strip.appendChild(el('div', { class: 'strip-label', text: 'SENDS MASTER' }));
+  strip.appendChild(el('div', { class: 'settings-note', style: 'margin-top:0; text-align:center;', text: 'Trims every active send at once, on top of each send\u2019s own volume slider.' }));
+
+  const sendsMasterCh = {
+    fader: { gain: {
+      get value(){ return state.sendsMasterLevel; },
+      set value(v){ setSendsMasterLevel(v); }
+    } },
+    muted: state.sendsMasterMuted,
+    lastFaderValue: state.sendsMasterLevel,
+    meterMaskEl: null
+  };
+  const faderWrap = buildFader(sendsMasterCh, 'sendsmaster');
+  strip.appendChild(faderWrap);
+  strip._faderWrap = faderWrap;
+
+  const muteBtn = el('button', { class: 'mute-btn' + (state.sendsMasterMuted ? ' on' : ''), text: 'MUTE' });
+  muteBtn.addEventListener('click', function(){
+    const isMuted = toggleSendsMasterMute();
+    muteBtn.classList.toggle('on', isMuted);
+    faderWrap.classList.toggle('is-muted', isMuted);
+    faderWrap._dbLabel.textContent = isMuted ? 'MUTED' : gainToDbLabel(state.sendsMasterLevel);
+  });
+  strip.appendChild(el('div', { class: 'strip-buttons' }, [muteBtn]));
+
+  return strip;
+}
+
 /* ============================================================
    SEND TARGETS — up to 4 simultaneous extra outputs (USB / USB-C / aux)
    per strip (master + each channel).
@@ -4123,6 +4182,29 @@ function createSendTarget(){
 }
 const MAX_SENDS = 4;
 state.sends = [];
+// SENDS MASTER — one shared level (0-150%, default 100%) and one shared
+// mute, mirrored into every strip's sendsMasterTap/sendsMasterMuteGain
+// (see buildChannel) so a single fader/mute in the Mix tab can trim or
+// silence every active send at once, without merging any strip's send
+// signal into another's — see allSendsMasterTaps() below.
+state.sendsMasterLevel = 1;
+state.sendsMasterMuted = false;
+function allSendsMasterTaps(){
+  const arr = MIX_BUS_KEYS.map(function(k){ return state.channels[k]; }).filter(Boolean);
+  if (masterBus) arr.push(masterBus);
+  return arr;
+}
+function setSendsMasterLevel(v){
+  state.sendsMasterLevel = v;
+  allSendsMasterTaps().forEach(function(ch){ ch.sendsMasterTap.gain.value = v; });
+}
+function toggleSendsMasterMute(){
+  state.sendsMasterMuted = !state.sendsMasterMuted;
+  const g = state.sendsMasterMuted ? 0 : 1;
+  allSendsMasterTaps().forEach(function(ch){ ch.sendsMasterMuteGain.gain.value = g; });
+  saveMixSettings();
+  return state.sendsMasterMuted;
+}
 function ensureSendSlot(i){
   if (state.sends[i]) return state.sends[i];
   const send = { enabled: false, deviceId: '', volume: 1, target: createSendTarget() };
@@ -4133,10 +4215,10 @@ function setSendEnabled(i, enabled){
   const send = ensureSendSlot(i);
   send.enabled = enabled;
   if (enabled){
-    masterBus.sendTap.connect(send.target.gain);
+    masterBus.sendsMasterMuteGain.connect(send.target.gain);
     send.target.activate();
   } else {
-    try { masterBus.sendTap.disconnect(send.target.gain); } catch(e){}
+    try { masterBus.sendsMasterMuteGain.disconnect(send.target.gain); } catch(e){}
   }
   saveMixSettings();
 }
@@ -4228,10 +4310,10 @@ function setChannelSendEnabled(ch, i, enabled){
   const send = ensureChannelSendSlot(ch, i);
   send.enabled = enabled;
   if (enabled){
-    ch.sendTap.connect(send.target.gain);
+    ch.sendsMasterMuteGain.connect(send.target.gain);
     send.target.activate();
   } else {
-    try { ch.sendTap.disconnect(send.target.gain); } catch(e){}
+    try { ch.sendsMasterMuteGain.disconnect(send.target.gain); } catch(e){}
   }
   saveMixSettings();
 }
@@ -4306,6 +4388,7 @@ function buildMixUI(){
   wrap.appendChild(buildChannelStrip('soundboard', 'SOUNDBOARD'));
   wrap.appendChild(buildChannelStrip('loop', 'LOOP'));
   wrap.appendChild(buildChannelStrip('music', 'MUSIC'));
+  wrap.appendChild(buildSendsMasterStrip());
   wrap.appendChild(buildMasterStrip());
 }
 
@@ -4879,6 +4962,7 @@ function saveMixSettings(){
     fader: masterBus.fader.gain.value, lastFaderValue: masterBus.lastFaderValue, muted: masterBus.muted,
     sends: state.sends.map(function(s){ return s ? { deviceId: s.deviceId, volume: s.volume, enabled: s.enabled } : null; })
   };
+  snapshot.sendsMaster = { level: state.sendsMasterLevel, muted: state.sendsMasterMuted };
   storageSet('mix-settings', snapshot, false);
 }
 
@@ -5023,7 +5107,7 @@ function restoreMixSettings(){
           }
           if (sendSnap.enabled && sendSnap.deviceId){
             send.enabled = true;
-            try { ch.sendTap.connect(send.target.gain); } catch(e){}
+            try { ch.sendsMasterMuteGain.connect(send.target.gain); } catch(e){}
             send.target.activate();
           }
         });
@@ -5052,11 +5136,19 @@ function restoreMixSettings(){
           }
           if (sendSnap.enabled && sendSnap.deviceId){
             send.enabled = true;
-            try { masterBus.sendTap.connect(send.target.gain); } catch(e){}
+            try { masterBus.sendsMasterMuteGain.connect(send.target.gain); } catch(e){}
             send.target.activate();
           }
         });
       }
+    }
+    if (snap.sendsMaster){
+      state.sendsMasterLevel = snap.sendsMaster.level != null ? snap.sendsMaster.level : 1;
+      state.sendsMasterMuted = !!snap.sendsMaster.muted;
+      allSendsMasterTaps().forEach(function(tapCh){
+        tapCh.sendsMasterTap.gain.value = state.sendsMasterLevel;
+        tapCh.sendsMasterMuteGain.gain.value = state.sendsMasterMuted ? 0 : 1;
+      });
     }
   });
 }
