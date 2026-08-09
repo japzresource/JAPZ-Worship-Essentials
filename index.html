@@ -1175,7 +1175,8 @@ function makeSoundPad(catId){
     id: 'sp-' + catId, category: catId, name: catId,
     buffer: null, rawArrayBuffer: null, fileName: '', loopEnabled: false,
     isPlaying: false, loading: false, loadError: false, playOnLoad: false, source: null,
-    gainNode: null, _loopTimer: null, _stopTimer: null, el: null
+    gainNode: null, _loopTimer: null, _stopTimer: null, _schedulerTimer: null,
+    _nextGenAt: null, _nextGenXfade: null, el: null
   };
 }
 function makeEditablePad(prefix, i, defaultName){
@@ -1794,6 +1795,45 @@ let pendingKeySwitchTimer = null; // used only by "Wait for fade-out" transition
 function clearPadTimers(pad){
   if (pad._loopTimer){ clearTimeout(pad._loopTimer); pad._loopTimer = null; }
   if (pad._stopTimer){ clearTimeout(pad._stopTimer); pad._stopTimer = null; }
+  stopSoundPadScheduler(pad);
+}
+
+/* ------------------------------------------------------------
+   Self-loop scheduling for Sound Pads, look-ahead style.
+   The old approach called setTimeout() once, timed to fire right as
+   the crossfade window opened, and had that same timeout callback
+   kick off the next generation. On a long file that gap between
+   generations can be minutes long, and a single long-delay setTimeout
+   is exactly what browsers throttle hardest — a backgrounded tab, a
+   phone screen locking, or just OS timer coalescing can delay or drop
+   it, so by the time it (maybe) fired, the previous generation's
+   source had already reached its own natural end and gone silent.
+   That's the "pad stops when the file is done on a long file" bug.
+   Fix: a short recurring interval (~150ms) just checks "are we within
+   SCHEDULE_AHEAD of the next generation's start time?" and, once so,
+   starts that generation using its exact precise AudioContext
+   timestamp — not "now". Because the actual audio start time is
+   locked in on the AudioContext clock (immune to JS timer jitter) and
+   there's over a second of slack before it's needed, an interval tick
+   arriving late by anything under that slack still produces a
+   perfectly sample-accurate, gapless loop.
+------------------------------------------------------------ */
+const SOUND_PAD_SCHEDULE_AHEAD = 1.5; // seconds of lookahead slack
+const SOUND_PAD_SCHEDULER_TICK_MS = 150;
+function ensureSoundPadScheduler(pad){
+  if (pad._schedulerTimer) return;
+  pad._schedulerTimer = setInterval(function(){
+    if (!pad.isPlaying || pad._nextGenAt == null || !ctx){ return; }
+    if (ctx.currentTime >= pad._nextGenAt - SOUND_PAD_SCHEDULE_AHEAD){
+      const at = pad._nextGenAt, xfade = pad._nextGenXfade;
+      pad._nextGenAt = null; pad._nextGenXfade = null;
+      playSoundPadGeneration(pad, xfade, at);
+    }
+  }, SOUND_PAD_SCHEDULER_TICK_MS);
+}
+function stopSoundPadScheduler(pad){
+  if (pad._schedulerTimer){ clearInterval(pad._schedulerTimer); pad._schedulerTimer = null; }
+  pad._nextGenAt = null; pad._nextGenXfade = null;
 }
 
 // A channel's own dedicated "duck" gain stage — briefly pulled down and
@@ -1865,14 +1905,13 @@ function playSoundPadGeneration(pad, fadeSeconds, atTime){
   const fadeOutStart = Math.max(now + 0.02, now + dur - loopXfade);
   gainNode.gain.setValueAtTime(1, fadeOutStart);
   gainNode.gain.linearRampToValueAtTime(0, fadeOutStart + loopXfade);
-  // Kick off the next generation just before this one's tail fade begins,
-  // so the new playthrough's fade-in overlaps the old one's fade-out —
-  // no silence, no cut, no dependence on the user pressing anything.
-  const msUntilNext = Math.max(0, (dur - loopXfade) * 1000);
-  pad._loopTimer = setTimeout(function(){
-    if (pad.source !== src || !pad.isPlaying) return; // stopped or switched away meanwhile
-    playSoundPadGeneration(pad, loopXfade);
-  }, msUntilNext);
+  // Arm the next generation on the AudioContext clock (not a raw
+  // setTimeout timed to fire at the crossfade instant) and let the
+  // look-ahead scheduler pick it up once it's within its window — see
+  // ensureSoundPadScheduler() above for why.
+  pad._nextGenAt = now + dur - loopXfade;
+  pad._nextGenXfade = loopXfade;
+  ensureSoundPadScheduler(pad);
   // Free this generation's source node shortly after its fade-out completes.
   pad._stopTimer = setTimeout(function(){ try{ src.stop(); }catch(e){} }, dur * 1000 + 150);
 }
