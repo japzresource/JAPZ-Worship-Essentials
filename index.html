@@ -943,7 +943,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
     </div>
     <div class="modal-body">
       <div id="sdd-body"></div>
-      <div class="settings-note">Sends an extra copy of just this channel to another output device at the same time — for a monitor mix, a separate recording interface, or a second speaker set. Independent of this channel's main Output routing.</div>
+      <div class="settings-note">Sends an extra copy of just this channel to another output device at the same time — for a monitor mix, a separate recording interface, or a second speaker set. Tapped pre-fader, so this channel's fader and mute don't touch it — only the volume slider on each send row below controls how loud it is.</div>
     </div>
   </div>
 </div>
@@ -3974,6 +3974,13 @@ function buildMasterStrip(){
    (Firefox, Safari/iOS) fall back to the <audio> element method, which
    still works but keeps its old, larger delay — that's a browser
    limitation, not something the page can fix.
+
+   INDEPENDENCE: every send (master or per-channel) is tapped from
+   postGain — after EQ/FX, but before that strip's own fader/mute — and
+   fed through its own dedicated GainNode (send.target.gain, the send's
+   volume slider). So a send only changes when its own toggle or slider
+   is touched; it does not move when the strip's fader is pulled down,
+   muted, or (for channels) affected by another channel being soloed.
 ============================================================ */
 function supportsAudioContextSink(){
   return !!(window.AudioContext && window.AudioContext.prototype && window.AudioContext.prototype.setSinkId);
@@ -4029,10 +4036,10 @@ function setSendEnabled(i, enabled){
   const send = ensureSendSlot(i);
   send.enabled = enabled;
   if (enabled){
-    masterBus.limiter.connect(send.target.gain);
+    masterBus.postGain.connect(send.target.gain);
     send.target.activate();
   } else {
-    try { masterBus.limiter.disconnect(send.target.gain); } catch(e){}
+    try { masterBus.postGain.disconnect(send.target.gain); } catch(e){}
   }
   saveMixSettings();
 }
@@ -4104,6 +4111,12 @@ function buildSendsUI(){
    independent of what's happening on the other channels. Each send
    also gets its own volume, so e.g. a Bluetooth speaker and a USB
    speaker fed from the same channel can be balanced independently.
+   Tapped from ch.postGain — after EQ/compressor/delay/reverb, but
+   BEFORE this channel's fader, mute and solo. That's deliberate: a
+   send has its own on/off and its own volume fader in this panel, so
+   pulling the channel's main fader down (or muting/soloing on the
+   console) is only supposed to affect the main mix, not silence a
+   send that's feeding its own independent speaker.
 ============================================================ */
 function ensureChannelSendSlot(ch, i){
   ch.sends = ch.sends || [];
@@ -4116,10 +4129,10 @@ function setChannelSendEnabled(ch, i, enabled){
   const send = ensureChannelSendSlot(ch, i);
   send.enabled = enabled;
   if (enabled){
-    ch.soloGain.connect(send.target.gain);
+    ch.postGain.connect(send.target.gain);
     send.target.activate();
   } else {
-    try { ch.soloGain.disconnect(send.target.gain); } catch(e){}
+    try { ch.postGain.disconnect(send.target.gain); } catch(e){}
   }
   saveMixSettings();
 }
@@ -4910,7 +4923,7 @@ function restoreMixSettings(){
           }
           if (sendSnap.enabled && sendSnap.deviceId){
             send.enabled = true;
-            try { ch.soloGain.connect(send.target.gain); } catch(e){}
+            try { ch.postGain.connect(send.target.gain); } catch(e){}
             send.target.activate();
           }
         });
@@ -4938,7 +4951,7 @@ function restoreMixSettings(){
           }
           if (sendSnap.enabled && sendSnap.deviceId){
             send.enabled = true;
-            try { masterBus.limiter.connect(send.target.gain); } catch(e){}
+            try { masterBus.postGain.connect(send.target.gain); } catch(e){}
             send.target.activate();
           }
         });
