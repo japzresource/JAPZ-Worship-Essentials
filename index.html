@@ -192,11 +192,6 @@ button:disabled{ opacity:0.35; pointer-events:none; }
   color:var(--text-muted); font-family:var(--font-display); font-weight:700; font-size:19px;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; overflow:hidden;
   --key-fade:0.15s;
-  /* Tells the browser this element is tapped, not double-tapped or
-     panned/zoomed, so it can fire the pointerdown that triggers playback
-     immediately instead of holding it briefly to see if a second tap or a
-     scroll gesture follows. */
-  touch-action:manipulation;
   box-shadow:0 0 0 0 rgba(179,18,31,0), 0 0 0 rgba(179,18,31,0);
   /* Only the glow (box-shadow) follows the slow, audio-matched --key-fade
      duration. border-color/background/color stay on a fixed, fast
@@ -227,7 +222,6 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 .pad-card{
   position:relative; aspect-ratio:1/1; border-radius:14px; background:var(--card); border:1px solid var(--border-strong);
   padding:12px 10px 10px; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden;
-  touch-action:manipulation; /* fire the trigger on touch-down, not after a double-tap/scroll timeout */
   transition:transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .pad-card:hover{ border-color:rgba(255,255,255,0.22); }
@@ -505,6 +499,14 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .output-select-wrap label{ display:block; font-family:var(--font-mono); font-size:9px; color:var(--text-dim); margin-bottom:6px; letter-spacing:0.08em; text-transform:uppercase; }
 .send-row{ display:flex; align-items:center; gap:8px; width:100%; }
 .output-select{ width:100%; padding:7px 6px; border-radius:7px; background:var(--panel); border:1px solid var(--border-strong); color:var(--text); font-family:var(--font-mono); font-size:9.5px; }
+.send-block{ display:flex; flex-direction:column; gap:6px; width:100%; padding:8px 0; border-bottom:1px solid var(--border); }
+.send-block:last-child{ border-bottom:none; }
+.send-vol-row{ display:flex; align-items:center; gap:8px; width:100%; padding-left:32px; }
+.send-vol-row input[type=range]{ flex:1; }
+.send-vol-label{ font-family:var(--font-mono); font-size:9px; color:var(--text-dim); width:34px; text-align:right; flex:none; }
+.send-latency-tag{ font-family:var(--font-mono); font-size:8px; letter-spacing:0.06em; text-transform:uppercase; padding:2px 5px; border-radius:4px; flex:none; }
+.send-latency-tag.fast{ background:rgba(55,224,140,0.14); color:var(--green); }
+.send-latency-tag.slow{ background:rgba(255,176,32,0.14); color:var(--amber); }
 
 /* ============================= EQ SPECTRUM MODAL ============================= */
 .spectrum-wrap{ position:relative; height:260px; background:#050506; border-radius:10px; border:1px solid var(--border-strong); overflow:hidden; }
@@ -1277,23 +1279,9 @@ function buildChannel(name, opts){
 
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -24; comp.ratio.value = 1; comp.attack.value = 0.006; comp.release.value = 0.2; comp.knee.value = 6;
-    // ZERO-LATENCY-WHEN-OFF: every browser's implementation of
-    // DynamicsCompressorNode carries a small, fixed internal look-ahead
-    // baked into the spec, no matter what threshold/ratio it's set to —
-    // so leaving it permanently wired into the main signal path (even at
-    // ratio 1, i.e. "off") would add a constant few-ms delay to every
-    // single sound on this channel all the time, for a feature that's off
-    // by default. Instead it's only spliced into the path (see
-    // wireChannelCompressor, below) while the user has actually switched
-    // it on — the default, off, path never touches this node at all, so
-    // it costs nothing until it's actually used.
-    const postComp = ctx.createGain(); postComp.gain.value = 1;
-    node.connect(postComp); // bypassed by default — compressor not in path yet
-    chain.eqOutNode = node;
-    chain.postComp = postComp;
+    node.connect(comp);
+    node = comp;
     chain.comp = comp; chain.compEnabled = false; chain.compThreshold = -24; chain.compRatio = 4; chain.compAttack = 0.006; chain.compRelease = 0.2;
-    chain.compWired = false;
-    node = postComp;
   }
 
   const pan = ctx.createStereoPanner();
@@ -1340,29 +1328,6 @@ function buildChannel(name, opts){
   return chain;
 }
 
-// Splices (or un-splices) a channel's compressor into its signal path.
-// This is what actually makes the "ZERO-LATENCY-WHEN-OFF" comment above
-// true: rather than always running audio through the compressor node and
-// just neutralizing its threshold/ratio, the node itself is only patched
-// into the graph while compression is switched on, so the off-by-default
-// path carries none of the node's fixed processing look-ahead.
-function wireChannelCompressor(ch, enable){
-  if (!ch || !ch.comp || !ch.eqOutNode || !ch.postComp) return;
-  enable = !!enable;
-  if (enable === ch.compWired) return;
-  const pre = ch.eqOutNode;
-  if (enable){
-    try { pre.disconnect(ch.postComp); } catch(e){}
-    pre.connect(ch.comp);
-    ch.comp.connect(ch.postComp);
-  } else {
-    try { pre.disconnect(ch.comp); } catch(e){}
-    try { ch.comp.disconnect(ch.postComp); } catch(e){}
-    pre.connect(ch.postComp);
-  }
-  ch.compWired = enable;
-}
-
 function initAudio(){
   if (ctx) return;
   // latencyHint:'interactive' asks the browser for the smallest safe output
@@ -1378,19 +1343,14 @@ function initAudio(){
   masterBus = buildChannel('Master', { full:false });
   const limiter = ctx.createDynamicsCompressor();
   limiter.threshold.value = -3; limiter.ratio.value = 1; limiter.attack.value = 0.001; limiter.release.value = 0.15; limiter.knee.value = 0;
-  masterBus.limiter = limiter; masterBus.limiterEnabled = false; masterBus.limiterCeiling = -3; masterBus.limiterWired = false;
+  masterBus.limiter = limiter; masterBus.limiterEnabled = false; masterBus.limiterCeiling = -3;
   masterBus.analyser.disconnect();
   masterBus.fader.disconnect();
   masterBus.muteGain.disconnect();
   masterBus.fader.connect(masterBus.muteGain);
-  // ZERO-LATENCY-WHEN-OFF (same reasoning as wireChannelCompressor above):
-  // the master limiter is a DynamicsCompressorNode too, so every sound in
-  // the entire app would otherwise pick up its fixed look-ahead delay all
-  // the time, even though the limiter defaults to off. It's kept OUT of
-  // the path here (muteGain feeds the analyser directly) and only spliced
-  // in by wireMasterLimiter() once the user actually turns it on.
-  masterBus.muteGain.connect(masterBus.analyser);
-  masterBus.muteGain.connect(masterBus.specAnalyser);
+  masterBus.muteGain.connect(limiter);
+  limiter.connect(masterBus.analyser);
+  limiter.connect(masterBus.specAnalyser);
   masterBus.analyser.connect(ctx.destination);
 
   state.channels.soundpad = buildChannel('Sound Pads');
@@ -1432,29 +1392,6 @@ function initAudio(){
   document.addEventListener('visibilitychange', function(){
     if (!document.hidden && ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
   });
-}
-
-// Splices (or un-splices) the master limiter into the output path — the
-// master-bus counterpart of wireChannelCompressor above, for the same
-// zero-latency-when-off reason.
-function wireMasterLimiter(enable){
-  if (!masterBus || !masterBus.limiter) return;
-  enable = !!enable;
-  if (enable === masterBus.limiterWired) return;
-  if (enable){
-    try { masterBus.muteGain.disconnect(masterBus.analyser); } catch(e){}
-    try { masterBus.muteGain.disconnect(masterBus.specAnalyser); } catch(e){}
-    masterBus.muteGain.connect(masterBus.limiter);
-    masterBus.limiter.connect(masterBus.analyser);
-    masterBus.limiter.connect(masterBus.specAnalyser);
-  } else {
-    try { masterBus.muteGain.disconnect(masterBus.limiter); } catch(e){}
-    try { masterBus.limiter.disconnect(masterBus.analyser); } catch(e){}
-    try { masterBus.limiter.disconnect(masterBus.specAnalyser); } catch(e){}
-    masterBus.muteGain.connect(masterBus.analyser);
-    masterBus.muteGain.connect(masterBus.specAnalyser);
-  }
-  masterBus.limiterWired = enable;
 }
 
 
@@ -1786,12 +1723,9 @@ function buildSoundPadCell(k){
   // No corner icons on Sound Pad cells — sounds auto-load from the library
   // and every pad loops seamlessly by itself, so there's nothing to upload,
   // replace, or toggle here. Just the key and its state.
-  // Triggered on pointerdown, not click, so the key-change crossfade starts
-  // the instant a finger/mouse touches the cell rather than waiting for it
-  // to be released — see the matching comment in buildDrumPadEl.
   const wrap = el('div', {
     class: classes.join(' '), title: k.sub ? (k.label + ' / ' + k.sub) : k.label,
-    onPointerdown: function(e){ if (e.button != null && e.button !== 0) return; flashEl(wrap); onSoundPadClick(pad); }
+    onClick: function(e){ flashEl(wrap); onSoundPadClick(pad); }
   }, [
     el('div', { class: 'key-cell-label', text: k.label }),
     el('div', { class: 'key-cell-sub', text: pad.loading ? (pad.playOnLoad ? 'Loading\u2026 will play' : 'Loading\u2026') : (pad.buffer ? '' : (pad.loadError ? '\u26A0 Load failed \u2014 tap to retry' : 'Tap to play')) })
@@ -2337,23 +2271,8 @@ function triggerEditablePadNow(pad, busKey, loop, opts){
   comp.threshold.value = pad.comp.enabled ? pad.comp.threshold : 0;
   comp.ratio.value = pad.comp.enabled ? pad.comp.ratio : 1;
   comp.attack.value = 0.003; comp.release.value = 0.15; comp.knee.value = 6;
-  env.connect(low); low.connect(mid); mid.connect(high);
-  // ZERO-LATENCY-WHEN-OFF: only patch the compressor into THIS playthrough's
-  // chain when it's actually switched on for this pad. Every browser's
-  // DynamicsCompressorNode carries a small, fixed internal look-ahead no
-  // matter what threshold/ratio it's set to, so wiring it in by default
-  // (even at ratio 1, i.e. "off") would add that delay to every single pad
-  // hit — for a feature that's off by default on every pad. The node is
-  // still created either way so the editor's live compressor knobs always
-  // have something to write into, but audio only actually flows through it
-  // while pad.comp.enabled is true, so the common case (comp off) plays
-  // with the shortest possible signal path.
-  if (pad.comp.enabled){
-    high.connect(comp);
-    comp.connect(state.channels[busKey].input);
-  } else {
-    high.connect(state.channels[busKey].input);
-  }
+  env.connect(low); low.connect(mid); mid.connect(high); high.connect(comp);
+  comp.connect(state.channels[busKey].input);
 
   // Live handle: while this pad is sounding, the editor's knobs write
   // straight into these nodes so EQ / gain / compressor changes are
@@ -2501,7 +2420,6 @@ function buildDrumPadEl(pad){
 
   const nameInput = el('input', {
     class: 'pad-name-label', type: 'text', value: pad.name,
-    onPointerdown: function(e){ e.stopPropagation(); },
     onClick: function(e){ e.stopPropagation(); },
     onChange: function(e){ pad.name = e.target.value || pad.name; scheduleDrumPadSave(pad); }
   });
@@ -2511,7 +2429,6 @@ function buildDrumPadEl(pad){
 
   const cornerIcon = el('button', {
     class: 'corner-icon right', html: svgIcon(pad.buffer ? 'edit' : 'upload', 11), title: pad.buffer ? 'Edit sound' : 'Upload sound',
-    onPointerdown: function(e){ e.stopPropagation(); },
     onClick: function(e){
       e.stopPropagation();
       if (!pad.buffer) openFilePicker(pad, function(){ scheduleDrumPadSave(pad); });
@@ -2522,14 +2439,7 @@ function buildDrumPadEl(pad){
   const shortcutKey = padIdx !== -1 ? padShortcuts[padIdx] : null;
   const shortcutBadge = shortcutKey ? el('div', { class: 'pad-shortcut-badge', text: shortcutKey.toUpperCase(), title: 'Keyboard shortcut: ' + shortcutKey.toUpperCase() }) : null;
 
-  // Trigger on pointerdown (the instant a finger/mouse touches the pad),
-  // not on click (which only fires after the finger/button is released).
-  // That press-to-release gap was real, perceptible latency on top of
-  // everything the audio engine already does — this is the same reason a
-  // real hardware drum pad fires the moment you hit it, not when you lift
-  // off. Right-click/middle-click are ignored so they don't misfire this.
-  const wrap = el('div', { class: classes.join(' '), style: '--pad-hue:' + hue + ';', onPointerdown: function(e){
-    if (e.button != null && e.button !== 0) return;
+  const wrap = el('div', { class: classes.join(' '), style: '--pad-hue:' + hue + ';', onClick: function(){
     if (pad.loading) return;
     if (!pad.buffer){ flashEl(wrap); openFilePicker(pad, function(){ scheduleDrumPadSave(pad); }); return; }
     if (editModeOn){ flashEl(wrap); openPadEditor(pad, 'drum'); return; }
@@ -3828,7 +3738,6 @@ function buildChannelStrip(channelKey, label){
     ch.compEnabled = !ch.compEnabled;
     ch.comp.ratio.value = ch.compEnabled ? ch.compRatio : 1;
     ch.comp.threshold.value = ch.compEnabled ? ch.compThreshold : 0;
-    wireChannelCompressor(ch, ch.compEnabled);
     compPower.textContent = ch.compEnabled ? 'ON' : 'OFF';
     compPower.classList.toggle('on', ch.compEnabled);
     saveMixSettings();
@@ -3964,7 +3873,6 @@ function buildMasterStrip(){
   limPower.addEventListener('click', function(){
     masterBus.limiterEnabled = !masterBus.limiterEnabled;
     masterBus.limiter.ratio.value = masterBus.limiterEnabled ? 20 : 1;
-    wireMasterLimiter(masterBus.limiterEnabled);
     limPower.textContent = masterBus.limiterEnabled ? 'ON' : 'OFF';
     limPower.classList.toggle('on', masterBus.limiterEnabled);
     saveMixSettings();
@@ -4010,23 +3918,71 @@ function buildMasterStrip(){
 }
 
 /* ============================================================
-   SENDS — up to 4 simultaneous extra outputs (USB / USB-C / aux).
-   AudioContext only has one destination, but Chromium lets each
-   separate <audio> element pick its own output device, so each
-   send gets its own hidden <audio> fed by a MediaStreamDestination
-   tapped straight off the master bus.
+   SEND TARGETS — up to 4 simultaneous extra outputs (USB / USB-C / aux)
+   per strip (master + each channel).
+
+   LATENCY: a plain <audio> element (the old approach) always carries a
+   fixed internal playback buffer the page cannot shrink, which is why
+   the send used to lag behind the main output by ~100-200ms even
+   though both started from the same signal.
+   Where the browser supports AudioContext.prototype.setSinkId (Chrome/
+   Edge 110+), we skip the <audio> element entirely: each send gets its
+   own small AudioContext (latencyHint:'interactive') pinned directly
+   to the target device via setSinkId(), fed by a MediaStreamDestination
+   tap from the main graph. That keeps the send on a real low-latency
+   audio path instead of a media-element playback queue, closing most
+   of the gap with the main output. Browsers without setSinkId support
+   (Firefox, Safari/iOS) fall back to the <audio> element method, which
+   still works but keeps its old, larger delay — that's a browser
+   limitation, not something the page can fix.
 ============================================================ */
+function supportsAudioContextSink(){
+  return !!(window.AudioContext && window.AudioContext.prototype && window.AudioContext.prototype.setSinkId);
+}
+function createSendTarget(){
+  const gain = ctx.createGain();
+  gain.gain.value = 1;
+  const lowLatency = supportsAudioContextSink();
+  const streamDest = ctx.createMediaStreamDestination();
+  gain.connect(streamDest);
+  let sendCtx = null, sendSource = null;
+  let audioEl = null;
+  if (!lowLatency){
+    audioEl = document.createElement('audio');
+    audioEl.autoplay = true;
+    audioEl.srcObject = streamDest.stream;
+    audioEl.style.display = 'none';
+    document.body.appendChild(audioEl);
+  }
+  function setDevice(deviceId){
+    if (lowLatency){
+      try {
+        if (!sendCtx){
+          sendCtx = new (window.AudioContext)({ latencyHint: 'interactive', sampleRate: ctx.sampleRate });
+          sendSource = sendCtx.createMediaStreamSource(streamDest.stream);
+          sendSource.connect(sendCtx.destination);
+        }
+        if (sendCtx.state === 'suspended') sendCtx.resume().catch(function(){});
+        if (deviceId) sendCtx.setSinkId(deviceId).catch(function(){});
+      } catch(e){}
+    } else if (audioEl && audioEl.setSinkId && deviceId){
+      audioEl.setSinkId(deviceId).catch(function(){});
+    }
+  }
+  function activate(){
+    if (lowLatency && sendCtx && sendCtx.state === 'suspended'){
+      sendCtx.resume().catch(function(){});
+    } else if (audioEl){
+      try { const p = audioEl.play(); if (p && typeof p.catch === 'function') p.catch(function(){}); } catch(e){}
+    }
+  }
+  return { gain: gain, setDevice: setDevice, activate: activate, lowLatency: lowLatency };
+}
 const MAX_SENDS = 4;
 state.sends = [];
 function ensureSendSlot(i){
   if (state.sends[i]) return state.sends[i];
-  const streamDest = ctx.createMediaStreamDestination();
-  const audioEl = document.createElement('audio');
-  audioEl.autoplay = true;
-  audioEl.srcObject = streamDest.stream;
-  audioEl.style.display = 'none';
-  document.body.appendChild(audioEl);
-  const send = { enabled: false, deviceId: '', streamDest: streamDest, audioEl: audioEl };
+  const send = { enabled: false, deviceId: '', volume: 1, target: createSendTarget() };
   state.sends[i] = send;
   return send;
 }
@@ -4034,44 +3990,57 @@ function setSendEnabled(i, enabled){
   const send = ensureSendSlot(i);
   send.enabled = enabled;
   if (enabled){
-    // Tap from the analyser, not the limiter node directly — the limiter
-    // is only spliced into the main path when actually turned on (see
-    // wireMasterLimiter), so tapping it directly would go silent whenever
-    // it's off. The analyser always carries the live post-fader signal
-    // regardless of limiter state, and passes audio through unmodified.
-    masterBus.analyser.connect(send.streamDest);
-    try {
-      const p = send.audioEl.play();
-      if (p && typeof p.catch === 'function') p.catch(function(){});
-    } catch(e){}
+    masterBus.limiter.connect(send.target.gain);
+    send.target.activate();
   } else {
-    try { masterBus.analyser.disconnect(send.streamDest); } catch(e){}
+    try { masterBus.limiter.disconnect(send.target.gain); } catch(e){}
   }
   saveMixSettings();
 }
 function setSendDevice(i, deviceId){
   const send = ensureSendSlot(i);
   send.deviceId = deviceId;
-  if (send.audioEl.setSinkId) send.audioEl.setSinkId(deviceId).catch(function(){});
+  send.target.setDevice(deviceId);
   saveMixSettings();
 }
+function setSendVolume(i, vol){
+  const send = ensureSendSlot(i);
+  send.volume = vol;
+  send.target.gain.gain.value = vol;
+  saveMixSettings();
+}
+function supportsSends(){
+  return supportsAudioContextSink() || !!(window.HTMLMediaElement && window.HTMLMediaElement.prototype.setSinkId);
+}
+function buildSendVolRow(send, i, onInput){
+  const slider = el('input', { type: 'range', min: '0', max: '150', step: '1', value: String(Math.round((send.volume != null ? send.volume : 1) * 100)) });
+  const label = el('span', { class: 'send-vol-label', text: Math.round((send.volume != null ? send.volume : 1) * 100) + '%' });
+  slider.addEventListener('input', function(){
+    const v = Number(slider.value) / 100;
+    label.textContent = Math.round(v * 100) + '%';
+    onInput(v);
+  });
+  return el('div', { class: 'send-vol-row' }, [slider, label]);
+}
 function buildSendsUI(){
-  const supportsMultiSink = !!(window.HTMLMediaElement && window.HTMLMediaElement.prototype.setSinkId) && !!(ctx && ctx.createMediaStreamDestination);
-  if (!supportsMultiSink){
-    return el('div', { class: 'settings-note', style: 'margin-top:0;', text: 'Extra simultaneous outputs need per-element output routing, which this browser doesn\u2019t support yet. Everything still plays through your main Output Device above.' });
+  if (!supportsSends()){
+    return el('div', { class: 'settings-note', style: 'margin-top:0;', text: 'Extra simultaneous outputs need per-device output routing, which this browser doesn\u2019t support yet. Everything still plays through your main Output Device above.' });
   }
-  const rows = [];
+  const blocks = [];
   for (let i = 0; i < MAX_SENDS; i++){
-    const toggle = el('button', { class: 'fx-power-btn', text: 'OFF' });
+    const send = ensureSendSlot(i);
+    const toggle = el('button', { class: 'fx-power-btn' + (send.enabled ? ' on' : ''), text: send.enabled ? 'ON' : 'OFF' });
     const select = el('select', { class: 'output-select', style: 'flex:1;' }, [el('option', { text: 'Choose device\u2026', value: '' })]);
+    const latencyTag = el('span', { class: 'send-latency-tag ' + (send.target.lowLatency ? 'fast' : 'slow'), text: send.target.lowLatency ? 'LOW LAT' : 'DELAYED' });
     listAudioOutputDevices().then(function(outputs){
       outputs.forEach(function(d){
-        select.appendChild(el('option', { text: d.label || 'Output ' + select.children.length, value: d.deviceId }));
+        const opt = el('option', { text: d.label || 'Output ' + select.children.length, value: d.deviceId });
+        if (send.deviceId === d.deviceId) opt.selected = true;
+        select.appendChild(opt);
       });
     });
-    (function(i, toggle, select){
+    (function(i, send, toggle, select){
       toggle.addEventListener('click', function(){
-        const send = ensureSendSlot(i);
         const newVal = !send.enabled;
         if (newVal && !send.deviceId){ alert('Choose an output device for this send first.'); return; }
         setSendEnabled(i, newVal);
@@ -4079,36 +4048,28 @@ function buildSendsUI(){
         toggle.classList.toggle('on', newVal);
       });
       select.addEventListener('change', function(){ setSendDevice(i, select.value); });
-    })(i, toggle, select);
-    rows.push(el('div', { class: 'send-row' }, [toggle, select]));
+    })(i, send, toggle, select);
+    const volRow = buildSendVolRow(send, i, function(v){ setSendVolume(i, v); });
+    blocks.push(el('div', { class: 'send-block' }, [
+      el('div', { class: 'send-row' }, [toggle, select, latencyTag]),
+      volRow
+    ]));
   }
-  return el('div', { style: 'display:flex; flex-direction:column; gap:8px; width:100%;' }, rows);
+  return el('div', { style: 'display:flex; flex-direction:column; gap:2px; width:100%;' }, blocks);
 }
 
 /* ============================================================
-   PER-CHANNEL SENDS — same idea as the Master sends above (up to 4
-   extra simultaneous output devices per <audio> element), but tapped
+   PER-CHANNEL SENDS — same idea as the Master sends above, but tapped
    from this one channel's own signal (post-FX, pre-master-bus) instead
    of the master mix, so a channel can be sent solo to a monitor output
-   independent of what's happening on the other channels.
-   Note on latency: this path goes through a hidden <audio> element
-   because that's currently the only way a browser lets a page drive
-   more than one live output device at once — that element carries some
-   fixed internal buffering the page can't remove. The main Output
-   Device above (driven straight by the AudioContext with
-   latencyHint:'interactive') stays the lowest-latency path; use Sends
-   for a secondary monitor mix, not when near-zero delay matters most.
+   independent of what's happening on the other channels. Each send
+   also gets its own volume, so e.g. a Bluetooth speaker and a USB
+   speaker fed from the same channel can be balanced independently.
 ============================================================ */
 function ensureChannelSendSlot(ch, i){
   ch.sends = ch.sends || [];
   if (ch.sends[i]) return ch.sends[i];
-  const streamDest = ctx.createMediaStreamDestination();
-  const audioEl = document.createElement('audio');
-  audioEl.autoplay = true;
-  audioEl.srcObject = streamDest.stream;
-  audioEl.style.display = 'none';
-  document.body.appendChild(audioEl);
-  const send = { enabled: false, deviceId: '', streamDest: streamDest, audioEl: audioEl };
+  const send = { enabled: false, deviceId: '', volume: 1, target: createSendTarget() };
   ch.sends[i] = send;
   return send;
 }
@@ -4116,42 +4077,44 @@ function setChannelSendEnabled(ch, i, enabled){
   const send = ensureChannelSendSlot(ch, i);
   send.enabled = enabled;
   if (enabled){
-    ch.soloGain.connect(send.streamDest);
-    try {
-      const p = send.audioEl.play();
-      if (p && typeof p.catch === 'function') p.catch(function(){});
-    } catch(e){}
+    ch.soloGain.connect(send.target.gain);
+    send.target.activate();
   } else {
-    try { ch.soloGain.disconnect(send.streamDest); } catch(e){}
+    try { ch.soloGain.disconnect(send.target.gain); } catch(e){}
   }
   saveMixSettings();
 }
 function setChannelSendDevice(ch, i, deviceId){
   const send = ensureChannelSendSlot(ch, i);
   send.deviceId = deviceId;
-  if (send.audioEl.setSinkId) send.audioEl.setSinkId(deviceId).catch(function(){});
+  send.target.setDevice(deviceId);
+  saveMixSettings();
+}
+function setChannelSendVolume(ch, i, vol){
+  const send = ensureChannelSendSlot(ch, i);
+  send.volume = vol;
+  send.target.gain.gain.value = vol;
   saveMixSettings();
 }
 function buildChannelSendsRows(ch){
-  const supportsMultiSink = !!(window.HTMLMediaElement && window.HTMLMediaElement.prototype.setSinkId) && !!(ctx && ctx.createMediaStreamDestination);
-  if (!supportsMultiSink){
-    return el('div', { class: 'settings-note', style: 'margin-top:0;', text: 'Extra simultaneous outputs need per-element output routing, which this browser doesn\u2019t support yet. This channel still plays through the main Output Device.' });
+  if (!supportsSends()){
+    return el('div', { class: 'settings-note', style: 'margin-top:0;', text: 'Extra simultaneous outputs need per-device output routing, which this browser doesn\u2019t support yet. This channel still plays through the main Output Device.' });
   }
-  const rows = [];
+  const blocks = [];
   for (let i = 0; i < MAX_SENDS; i++){
-    const existing = (ch.sends || [])[i];
-    const toggle = el('button', { class: 'fx-power-btn' + (existing && existing.enabled ? ' on' : ''), text: existing && existing.enabled ? 'ON' : 'OFF' });
+    const send = ensureChannelSendSlot(ch, i);
+    const toggle = el('button', { class: 'fx-power-btn' + (send.enabled ? ' on' : ''), text: send.enabled ? 'ON' : 'OFF' });
     const select = el('select', { class: 'output-select', style: 'flex:1;' }, [el('option', { text: 'Choose device\u2026', value: '' })]);
+    const latencyTag = el('span', { class: 'send-latency-tag ' + (send.target.lowLatency ? 'fast' : 'slow'), text: send.target.lowLatency ? 'LOW LAT' : 'DELAYED' });
     listAudioOutputDevices().then(function(outputs){
       outputs.forEach(function(d){
         const opt = el('option', { text: d.label || 'Output ' + select.children.length, value: d.deviceId });
-        if (existing && existing.deviceId === d.deviceId) opt.selected = true;
+        if (send.deviceId === d.deviceId) opt.selected = true;
         select.appendChild(opt);
       });
     });
-    (function(i, toggle, select){
+    (function(i, send, toggle, select){
       toggle.addEventListener('click', function(){
-        const send = ensureChannelSendSlot(ch, i);
         const newVal = !send.enabled;
         if (newVal && !send.deviceId){ alert('Choose an output device for this send first.'); return; }
         setChannelSendEnabled(ch, i, newVal);
@@ -4159,10 +4122,14 @@ function buildChannelSendsRows(ch){
         toggle.classList.toggle('on', newVal);
       });
       select.addEventListener('change', function(){ setChannelSendDevice(ch, i, select.value); });
-    })(i, toggle, select);
-    rows.push(el('div', { class: 'send-row' }, [toggle, select]));
+    })(i, send, toggle, select);
+    const volRow = buildSendVolRow(send, i, function(v){ setChannelSendVolume(ch, i, v); });
+    blocks.push(el('div', { class: 'send-block' }, [
+      el('div', { class: 'send-row' }, [toggle, select, latencyTag]),
+      volRow
+    ]));
   }
-  return el('div', { style: 'display:flex; flex-direction:column; gap:8px; width:100%;' }, rows);
+  return el('div', { style: 'display:flex; flex-direction:column; gap:2px; width:100%;' }, blocks);
 }
 let currentSendsChannelKey = null;
 function openSendsDetail(channelKey, label){
@@ -4752,13 +4719,14 @@ function saveMixSettings(){
       compEnabled: ch.compEnabled, compThreshold: ch.compThreshold, compRatio: ch.compRatio, compAttack: ch.compAttack, compRelease: ch.compRelease,
       delayTime: ch.delayNode.delayTime.value, delayFeedback: ch.delayFeedback.gain.value, delayMixValue: ch.delayMixValue, delayEnabled: ch.delayEnabled,
       reverbSize: ch.reverbSize, reverbWetValue: ch.reverbWetValue, reverbEnabled: ch.reverbEnabled, reverbDry: ch.dry.gain.value,
-      fader: ch.fader.gain.value, lastFaderValue: ch.lastFaderValue, muted: ch.muted
+      fader: ch.fader.gain.value, lastFaderValue: ch.lastFaderValue, muted: ch.muted,
+      sends: (ch.sends || []).map(function(s){ return s ? { deviceId: s.deviceId, volume: s.volume, enabled: s.enabled } : null; })
     };
   });
   snapshot.master = {
     pan: masterBus.pan.pan.value, limiterEnabled: masterBus.limiterEnabled, limiterCeiling: masterBus.limiterCeiling,
     fader: masterBus.fader.gain.value, lastFaderValue: masterBus.lastFaderValue, muted: masterBus.muted,
-    sends: state.sends.map(function(s){ return s ? { deviceId: s.deviceId } : null; })
+    sends: state.sends.map(function(s){ return s ? { deviceId: s.deviceId, volume: s.volume, enabled: s.enabled } : null; })
   };
   storageSet('mix-settings', snapshot, false);
 }
@@ -4876,7 +4844,6 @@ function restoreMixSettings(){
       ch.comp.threshold.value = ch.compEnabled ? ch.compThreshold : 0;
       ch.comp.ratio.value = ch.compEnabled ? ch.compRatio : 1;
       ch.comp.attack.value = ch.compAttack; ch.comp.release.value = ch.compRelease;
-      wireChannelCompressor(ch, ch.compEnabled);
       ch.delayNode.delayTime.value = s.delayTime != null ? s.delayTime : 0.3;
       ch.delayFeedback.gain.value = s.delayFeedback != null ? s.delayFeedback : 0.3;
       ch.delayMixValue = s.delayMixValue != null ? s.delayMixValue : 0;
@@ -4892,6 +4859,23 @@ function restoreMixSettings(){
       ch.lastFaderValue = s.lastFaderValue != null ? s.lastFaderValue : 1;
       ch.muted = !!s.muted;
       ch.muteGain.gain.value = ch.muted ? 0 : 1;
+      if (Array.isArray(s.sends)){
+        s.sends.forEach(function(sendSnap, i){
+          if (!sendSnap) return;
+          const send = ensureChannelSendSlot(ch, i);
+          send.volume = sendSnap.volume != null ? sendSnap.volume : 1;
+          send.target.gain.gain.value = send.volume;
+          if (sendSnap.deviceId){
+            send.deviceId = sendSnap.deviceId;
+            send.target.setDevice(sendSnap.deviceId);
+          }
+          if (sendSnap.enabled && sendSnap.deviceId){
+            send.enabled = true;
+            try { ch.soloGain.connect(send.target.gain); } catch(e){}
+            send.target.activate();
+          }
+        });
+      }
     });
     if (snap.master){
       masterBus.pan.pan.value = snap.master.pan != null ? snap.master.pan : 0;
@@ -4899,11 +4883,27 @@ function restoreMixSettings(){
       masterBus.limiterCeiling = snap.master.limiterCeiling != null ? snap.master.limiterCeiling : -3;
       masterBus.limiter.ratio.value = masterBus.limiterEnabled ? 20 : 1;
       masterBus.limiter.threshold.value = masterBus.limiterCeiling;
-      wireMasterLimiter(masterBus.limiterEnabled);
       masterBus.fader.gain.value = snap.master.fader != null ? snap.master.fader : 1;
       masterBus.lastFaderValue = snap.master.lastFaderValue != null ? snap.master.lastFaderValue : 1;
       masterBus.muted = !!snap.master.muted;
       masterBus.muteGain.gain.value = masterBus.muted ? 0 : 1;
+      if (Array.isArray(snap.master.sends)){
+        snap.master.sends.forEach(function(sendSnap, i){
+          if (!sendSnap) return;
+          const send = ensureSendSlot(i);
+          send.volume = sendSnap.volume != null ? sendSnap.volume : 1;
+          send.target.gain.gain.value = send.volume;
+          if (sendSnap.deviceId){
+            send.deviceId = sendSnap.deviceId;
+            send.target.setDevice(sendSnap.deviceId);
+          }
+          if (sendSnap.enabled && sendSnap.deviceId){
+            send.enabled = true;
+            try { masterBus.limiter.connect(send.target.gain); } catch(e){}
+            send.target.activate();
+          }
+        });
+      }
     }
   });
 }
