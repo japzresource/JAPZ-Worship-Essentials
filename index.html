@@ -1271,9 +1271,23 @@ function buildChannel(name, opts){
 
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -24; comp.ratio.value = 1; comp.attack.value = 0.006; comp.release.value = 0.2; comp.knee.value = 6;
-    node.connect(comp);
-    node = comp;
+    // ZERO-LATENCY-WHEN-OFF: every browser's implementation of
+    // DynamicsCompressorNode carries a small, fixed internal look-ahead
+    // baked into the spec, no matter what threshold/ratio it's set to —
+    // so leaving it permanently wired into the main signal path (even at
+    // ratio 1, i.e. "off") would add a constant few-ms delay to every
+    // single sound on this channel all the time, for a feature that's off
+    // by default. Instead it's only spliced into the path (see
+    // wireChannelCompressor, below) while the user has actually switched
+    // it on — the default, off, path never touches this node at all, so
+    // it costs nothing until it's actually used.
+    const postComp = ctx.createGain(); postComp.gain.value = 1;
+    node.connect(postComp); // bypassed by default — compressor not in path yet
+    chain.eqOutNode = node;
+    chain.postComp = postComp;
     chain.comp = comp; chain.compEnabled = false; chain.compThreshold = -24; chain.compRatio = 4; chain.compAttack = 0.006; chain.compRelease = 0.2;
+    chain.compWired = false;
+    node = postComp;
   }
 
   const pan = ctx.createStereoPanner();
@@ -1320,6 +1334,29 @@ function buildChannel(name, opts){
   return chain;
 }
 
+// Splices (or un-splices) a channel's compressor into its signal path.
+// This is what actually makes the "ZERO-LATENCY-WHEN-OFF" comment above
+// true: rather than always running audio through the compressor node and
+// just neutralizing its threshold/ratio, the node itself is only patched
+// into the graph while compression is switched on, so the off-by-default
+// path carries none of the node's fixed processing look-ahead.
+function wireChannelCompressor(ch, enable){
+  if (!ch || !ch.comp || !ch.eqOutNode || !ch.postComp) return;
+  enable = !!enable;
+  if (enable === ch.compWired) return;
+  const pre = ch.eqOutNode;
+  if (enable){
+    try { pre.disconnect(ch.postComp); } catch(e){}
+    pre.connect(ch.comp);
+    ch.comp.connect(ch.postComp);
+  } else {
+    try { pre.disconnect(ch.comp); } catch(e){}
+    try { ch.comp.disconnect(ch.postComp); } catch(e){}
+    pre.connect(ch.postComp);
+  }
+  ch.compWired = enable;
+}
+
 function initAudio(){
   if (ctx) return;
   // latencyHint:'interactive' asks the browser for the smallest safe output
@@ -1335,14 +1372,19 @@ function initAudio(){
   masterBus = buildChannel('Master', { full:false });
   const limiter = ctx.createDynamicsCompressor();
   limiter.threshold.value = -3; limiter.ratio.value = 1; limiter.attack.value = 0.001; limiter.release.value = 0.15; limiter.knee.value = 0;
-  masterBus.limiter = limiter; masterBus.limiterEnabled = false; masterBus.limiterCeiling = -3;
+  masterBus.limiter = limiter; masterBus.limiterEnabled = false; masterBus.limiterCeiling = -3; masterBus.limiterWired = false;
   masterBus.analyser.disconnect();
   masterBus.fader.disconnect();
   masterBus.muteGain.disconnect();
   masterBus.fader.connect(masterBus.muteGain);
-  masterBus.muteGain.connect(limiter);
-  limiter.connect(masterBus.analyser);
-  limiter.connect(masterBus.specAnalyser);
+  // ZERO-LATENCY-WHEN-OFF (same reasoning as wireChannelCompressor above):
+  // the master limiter is a DynamicsCompressorNode too, so every sound in
+  // the entire app would otherwise pick up its fixed look-ahead delay all
+  // the time, even though the limiter defaults to off. It's kept OUT of
+  // the path here (muteGain feeds the analyser directly) and only spliced
+  // in by wireMasterLimiter() once the user actually turns it on.
+  masterBus.muteGain.connect(masterBus.analyser);
+  masterBus.muteGain.connect(masterBus.specAnalyser);
   masterBus.analyser.connect(ctx.destination);
 
   state.channels.soundpad = buildChannel('Sound Pads');
@@ -1384,6 +1426,29 @@ function initAudio(){
   document.addEventListener('visibilitychange', function(){
     if (!document.hidden && ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
   });
+}
+
+// Splices (or un-splices) the master limiter into the output path — the
+// master-bus counterpart of wireChannelCompressor above, for the same
+// zero-latency-when-off reason.
+function wireMasterLimiter(enable){
+  if (!masterBus || !masterBus.limiter) return;
+  enable = !!enable;
+  if (enable === masterBus.limiterWired) return;
+  if (enable){
+    try { masterBus.muteGain.disconnect(masterBus.analyser); } catch(e){}
+    try { masterBus.muteGain.disconnect(masterBus.specAnalyser); } catch(e){}
+    masterBus.muteGain.connect(masterBus.limiter);
+    masterBus.limiter.connect(masterBus.analyser);
+    masterBus.limiter.connect(masterBus.specAnalyser);
+  } else {
+    try { masterBus.muteGain.disconnect(masterBus.limiter); } catch(e){}
+    try { masterBus.limiter.disconnect(masterBus.analyser); } catch(e){}
+    try { masterBus.limiter.disconnect(masterBus.specAnalyser); } catch(e){}
+    masterBus.muteGain.connect(masterBus.analyser);
+    masterBus.muteGain.connect(masterBus.specAnalyser);
+  }
+  masterBus.limiterWired = enable;
 }
 
 
@@ -2263,8 +2328,23 @@ function triggerEditablePadNow(pad, busKey, loop, opts){
   comp.threshold.value = pad.comp.enabled ? pad.comp.threshold : 0;
   comp.ratio.value = pad.comp.enabled ? pad.comp.ratio : 1;
   comp.attack.value = 0.003; comp.release.value = 0.15; comp.knee.value = 6;
-  env.connect(low); low.connect(mid); mid.connect(high); high.connect(comp);
-  comp.connect(state.channels[busKey].input);
+  env.connect(low); low.connect(mid); mid.connect(high);
+  // ZERO-LATENCY-WHEN-OFF: only patch the compressor into THIS playthrough's
+  // chain when it's actually switched on for this pad. Every browser's
+  // DynamicsCompressorNode carries a small, fixed internal look-ahead no
+  // matter what threshold/ratio it's set to, so wiring it in by default
+  // (even at ratio 1, i.e. "off") would add that delay to every single pad
+  // hit — for a feature that's off by default on every pad. The node is
+  // still created either way so the editor's live compressor knobs always
+  // have something to write into, but audio only actually flows through it
+  // while pad.comp.enabled is true, so the common case (comp off) plays
+  // with the shortest possible signal path.
+  if (pad.comp.enabled){
+    high.connect(comp);
+    comp.connect(state.channels[busKey].input);
+  } else {
+    high.connect(state.channels[busKey].input);
+  }
 
   // Live handle: while this pad is sounding, the editor's knobs write
   // straight into these nodes so EQ / gain / compressor changes are
@@ -3730,6 +3810,7 @@ function buildChannelStrip(channelKey, label){
     ch.compEnabled = !ch.compEnabled;
     ch.comp.ratio.value = ch.compEnabled ? ch.compRatio : 1;
     ch.comp.threshold.value = ch.compEnabled ? ch.compThreshold : 0;
+    wireChannelCompressor(ch, ch.compEnabled);
     compPower.textContent = ch.compEnabled ? 'ON' : 'OFF';
     compPower.classList.toggle('on', ch.compEnabled);
     saveMixSettings();
@@ -3865,6 +3946,7 @@ function buildMasterStrip(){
   limPower.addEventListener('click', function(){
     masterBus.limiterEnabled = !masterBus.limiterEnabled;
     masterBus.limiter.ratio.value = masterBus.limiterEnabled ? 20 : 1;
+    wireMasterLimiter(masterBus.limiterEnabled);
     limPower.textContent = masterBus.limiterEnabled ? 'ON' : 'OFF';
     limPower.classList.toggle('on', masterBus.limiterEnabled);
     saveMixSettings();
@@ -3934,13 +4016,18 @@ function setSendEnabled(i, enabled){
   const send = ensureSendSlot(i);
   send.enabled = enabled;
   if (enabled){
-    masterBus.limiter.connect(send.streamDest);
+    // Tap from the analyser, not the limiter node directly — the limiter
+    // is only spliced into the main path when actually turned on (see
+    // wireMasterLimiter), so tapping it directly would go silent whenever
+    // it's off. The analyser always carries the live post-fader signal
+    // regardless of limiter state, and passes audio through unmodified.
+    masterBus.analyser.connect(send.streamDest);
     try {
       const p = send.audioEl.play();
       if (p && typeof p.catch === 'function') p.catch(function(){});
     } catch(e){}
   } else {
-    try { masterBus.limiter.disconnect(send.streamDest); } catch(e){}
+    try { masterBus.analyser.disconnect(send.streamDest); } catch(e){}
   }
   saveMixSettings();
 }
@@ -4771,6 +4858,7 @@ function restoreMixSettings(){
       ch.comp.threshold.value = ch.compEnabled ? ch.compThreshold : 0;
       ch.comp.ratio.value = ch.compEnabled ? ch.compRatio : 1;
       ch.comp.attack.value = ch.compAttack; ch.comp.release.value = ch.compRelease;
+      wireChannelCompressor(ch, ch.compEnabled);
       ch.delayNode.delayTime.value = s.delayTime != null ? s.delayTime : 0.3;
       ch.delayFeedback.gain.value = s.delayFeedback != null ? s.delayFeedback : 0.3;
       ch.delayMixValue = s.delayMixValue != null ? s.delayMixValue : 0;
@@ -4793,6 +4881,7 @@ function restoreMixSettings(){
       masterBus.limiterCeiling = snap.master.limiterCeiling != null ? snap.master.limiterCeiling : -3;
       masterBus.limiter.ratio.value = masterBus.limiterEnabled ? 20 : 1;
       masterBus.limiter.threshold.value = masterBus.limiterCeiling;
+      wireMasterLimiter(masterBus.limiterEnabled);
       masterBus.fader.gain.value = snap.master.fader != null ? snap.master.fader : 1;
       masterBus.lastFaderValue = snap.master.lastFaderValue != null ? snap.master.lastFaderValue : 1;
       masterBus.muted = !!snap.master.muted;
