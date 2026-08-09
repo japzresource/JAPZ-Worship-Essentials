@@ -609,7 +609,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 
 <!-- ============================= LOADING SCREEN ============================= -->
 <div id="loading-screen">
-  <div class="brand-mark">JAPZ Worship Essentials</div>
+  <div class="brand-mark">Worship Essentials</div>
   <div class="brand-sub">Live Performance Pad Engine</div>
   <div class="eq-deco"><span></span><span></span><span></span><span></span><span></span><span></span></div>
   <div class="loading-bar-track"><div class="loading-bar-fill" id="loading-bar-fill"></div></div>
@@ -622,7 +622,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 <!-- ============================= PASSWORD GATE ============================= -->
 <div id="password-screen">
   <div class="pw-card">
-    <div class="pw-title">Japz Worship Essentials</div>
+    <div class="pw-title">Worship Essentials</div>
     <div class="pw-sub">Enter Password To Continue</div>
     <div class="pw-divider"></div>
     <div class="pw-field">
@@ -646,7 +646,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 <div id="intro-screen">
   <video id="intro-video" src="WORSHIP%20ESSENTIAL.mp4" playsinline></video>
   <div id="intro-fallback">
-    <div class="brand-mark">JAPZ Worship Essentials</div>
+    <div class="brand-mark">Worship Essentials</div>
     <div class="intro-tagline">Sound Pads · Soundboard · Loops · Mix</div>
   </div>
   <button class="intro-skip" id="intro-skip-btn">Skip ▸</button>
@@ -823,7 +823,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
     <div class="now-playing-bar" id="loop-now-playing"></div>
   </div>
 
-  <div class="app-footer">JAPZ Worship Essentials — runs entirely in your browser</div>
+  <div class="app-footer">Worship Essentials — runs entirely in your browser</div>
 </div>
 
 <!-- ============================= SHARED PAD EDITOR MODAL (Soundboard + Loops) ============================= -->
@@ -1089,7 +1089,7 @@ const hasStorage = true; // one of the two backends below is always available
 const usingClaudeStorage = !!(window.storage && typeof window.storage.get === 'function');
 
 /* --- IndexedDB backend (used outside the Claude artifact runtime, e.g. on GitHub Pages) --- */
-const IDB_NAME = 'japz-worship-essentials';
+const IDB_NAME = 'worship-essentials';
 const IDB_STORE = 'kv';
 let idbPromise = null;
 function openIdb(){
