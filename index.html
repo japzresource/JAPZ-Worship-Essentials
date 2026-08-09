@@ -612,7 +612,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 
 <!-- ============================= BRAND INTRO ============================= -->
 <div id="intro-screen">
-  <video id="intro-video" src="japz-intro.mp4" playsinline muted></video>
+  <video id="intro-video" src="WORSHIP%20ESSENTIAL.mp4" playsinline></video>
   <div id="intro-fallback">
     <div class="brand-mark">JAPZ Worship Essentials</div>
     <div class="intro-tagline">Sound Pads · Soundboard · Loops · Mix</div>
@@ -5370,16 +5370,24 @@ function playIntroSequence(onDone, waitPromise){
   }
 
   video.addEventListener('error', function(){ showFallback(); });
-  video.addEventListener('canplay', function(){
-    videoWorked = true;
-    video.style.display = 'block';
-    fallback.style.display = 'none';
-    try {
-      const p = video.play();
-      if (p && typeof p.catch === 'function') p.catch(function(){ videoWorked = false; showFallback(); });
-    } catch(e){ videoWorked = false; showFallback(); }
-  });
   video.addEventListener('ended', finish);
+  // Call play() synchronously here (not inside an async 'canplay' handler) so it
+  // still counts as triggered by the Enter Studio click — that's what lets the
+  // browser allow it to play WITH sound instead of getting silently blocked.
+  try {
+    const p = video.play();
+    if (p && typeof p.then === 'function'){
+      p.then(function(){
+        videoWorked = true;
+        video.style.display = 'block';
+        fallback.style.display = 'none';
+      }).catch(function(){ showFallback(); });
+    } else {
+      videoWorked = true;
+      video.style.display = 'block';
+      fallback.style.display = 'none';
+    }
+  } catch(e){ showFallback(); }
   setTimeout(function(){ if (!videoWorked) showFallback(); }, 1200);
 }
 
