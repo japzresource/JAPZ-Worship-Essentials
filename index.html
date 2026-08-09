@@ -510,6 +510,14 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .eqd-shape-row{ display:flex; align-items:center; gap:14px; }
 .eqd-shape-label{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase; }
 .eqd-readout b{ color:var(--text); }
+.eqd-readout-off{ opacity:0.4; text-decoration:line-through; }
+.eqd-band-toggles{ display:flex; gap:6px; flex-wrap:wrap; }
+.eqd-band-toggle{
+  --band-color:#4ea8ff; padding:5px 10px; border-radius:6px; font-family:var(--font-mono); font-size:10px; letter-spacing:0.05em;
+  background:var(--panel); border:1px solid var(--border-strong); color:var(--text-dim);
+}
+.eqd-band-toggle.on{ background:var(--band-color); border-color:var(--band-color); color:#0a0a0a; font-weight:700; }
+.eq-node.bypassed{ opacity:0.3; filter:grayscale(0.6); }
 
 /* ============================= EMPTY STATES ============================= */
 .upload-plus{ font-size:20px; color:var(--text-dim); }
@@ -898,7 +906,10 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
   <div class="modal-panel wide">
     <div class="modal-header">
       <div class="modal-title-static" id="eqd-title">Channel EQ</div>
-      <button class="modal-close-btn" id="eqd-close"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg></button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="eq-open-btn" id="eqd-reset-btn" style="width:auto; margin-top:0; padding:7px 12px;">Reset EQ</button>
+        <button class="modal-close-btn" id="eqd-close"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg></button>
+      </div>
     </div>
     <div class="modal-body">
       <div class="spectrum-wrap" id="eqd-wrap">
@@ -906,11 +917,12 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         <div id="eqd-nodes"></div>
       </div>
       <div class="eqd-readout" id="eqd-readout"></div>
+      <div class="eqd-band-toggles" id="eqd-band-toggles"></div>
       <div class="eqd-shape-row">
         <span class="eqd-shape-label">Curve Shape</span>
         <div id="eqd-shape-knob"></div>
       </div>
-      <div class="settings-note">Drag a dot left / right to change its frequency, up / down to change its gain. The Shape knob narrows or widens every band at once. The colored curve reacts to whatever is actually playing through this channel; the white line is the exact combined EQ response.</div>
+      <div class="settings-note">Drag a dot left / right to change its frequency, up / down to change its gain. B1-B8 switch that band on or off without losing its setting. Reset EQ puts every band back to flat/default. The Shape knob narrows or widens every band at once. The colored curve reacts to whatever is actually playing through this channel, colored by level like a console's RTA (green = quiet, red = hot); the white line is the exact combined EQ response.</div>
     </div>
   </div>
 </div>
@@ -1247,6 +1259,14 @@ function buildChannel(name, opts){
       node = bands[bi];
     }
     chain.bands = bands;
+    chain.eqFreqDefaults = eqFreqs.slice();
+    // The "set" gain per band, independent of whether the band is
+    // currently bypassed. band.gain.value (the live audio param) is
+    // derived from this — 0 while bypassed, this value otherwise — so
+    // switching a band off and back on always comes back to where you
+    // left it, and the dot never jumps when you flip the toggle.
+    chain.bandStoredGain = bands.map(function(b){ return b.gain.value; });
+    chain.bandBypassed = bands.map(function(){ return false; });
     chain.eqShape = 1; // Q multiplier — narrower (higher) = spikier curve, wider (lower) = smoother
 
     const comp = ctx.createDynamicsCompressor();
@@ -2220,7 +2240,16 @@ function triggerEditablePad(pad, busKey, loop, opts){
   // so it's safe to return immediately for callers (like the queue) that
   // need it synchronously to schedule the next step.
   const dur = Math.max(0.03, pad.trimEnd - pad.trimStart);
-  ensureAudio().then(function(){ triggerEditablePadNow(pad, busKey, loop, opts); });
+  if (ctx && ctx.state === 'running'){
+    // The overwhelmingly common case: the context is already live (the
+    // keep-alive oscillator keeps it from auto-suspending), so there's
+    // nothing to wait on — start the sound on this exact tick instead of
+    // going through a Promise round-trip that only exists for the rare
+    // "context was actually suspended" case below.
+    triggerEditablePadNow(pad, busKey, loop, opts);
+  } else {
+    ensureAudio().then(function(){ triggerEditablePadNow(pad, busKey, loop, opts); });
+  }
   return dur;
 }
 function triggerEditablePadNow(pad, busKey, loop, opts){
@@ -2403,11 +2432,11 @@ function buildDrumPadEl(pad){
   const shortcutBadge = shortcutKey ? el('div', { class: 'pad-shortcut-badge', text: shortcutKey.toUpperCase(), title: 'Keyboard shortcut: ' + shortcutKey.toUpperCase() }) : null;
 
   const wrap = el('div', { class: classes.join(' '), style: '--pad-hue:' + hue + ';', onClick: function(){
-    flashEl(wrap);
     if (pad.loading) return;
-    if (!pad.buffer){ openFilePicker(pad, function(){ scheduleDrumPadSave(pad); }); return; }
-    if (editModeOn){ openPadEditor(pad, 'drum'); return; }
+    if (!pad.buffer){ flashEl(wrap); openFilePicker(pad, function(){ scheduleDrumPadSave(pad); }); return; }
+    if (editModeOn){ flashEl(wrap); openPadEditor(pad, 'drum'); return; }
     triggerEditablePad(pad, 'soundboard', false);
+    flashEl(wrap);
     scheduleDrumPadSave(pad);
   } }, [
     el('div', { class: 'pad-topbar' }),
@@ -2436,6 +2465,7 @@ document.addEventListener('keydown', function(e){
   if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (listeningForShortcutIdx !== null) return; // settings UI handles capture itself
+  if (e.repeat) return; // holding the key down shouldn't retrigger on every OS auto-repeat tick
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   const idx = padShortcuts.indexOf(key);
   if (idx === -1) return;
@@ -2443,9 +2473,14 @@ document.addEventListener('keydown', function(e){
   if (!pad || pad.loading) return;
   e.preventDefault();
   if (!pad.buffer){ openFilePicker(pad, function(){ scheduleDrumPadSave(pad); }); return; }
-  if (pad.el) flashEl(pad.el);
-  if (editModeOn){ openPadEditor(pad, 'drum'); return; }
+  if (editModeOn){ if (pad.el) flashEl(pad.el); openPadEditor(pad, 'drum'); return; }
+  // Sound first, everything else after: the flash and the autosave are
+  // both purely cosmetic/background bookkeeping, so they're pushed past
+  // the trigger call instead of running before it — every bit of DOM or
+  // storage work done ahead of triggerEditablePad is time added between
+  // the key press and the first sample actually reaching the output.
   triggerEditablePad(pad, 'soundboard', false);
+  if (pad.el) flashEl(pad.el);
   scheduleDrumPadSave(pad);
 });
 
@@ -4058,6 +4093,50 @@ function buildMixUI(){
 let eqdAnimHandle = null;
 const EQD_NODE_COLORS = ['#5b6bff','#4ea8ff','#37e08c','#a8d84a','#e0c22e','#ffb020','#ff7a30','#d81f2e'];
 
+// Sets a band's "set" gain and pushes it live only if the band isn't
+// currently bypassed — this is the single place both dragging a dot and
+// resetting the EQ should go through, so the two states (stored vs. live)
+// never drift apart.
+function setBandGain(ch, i, gain){
+  ch.bandStoredGain[i] = gain;
+  if (!ch.bandBypassed[i]) ch.bands[i].gain.value = gain;
+}
+function toggleBandBypass(ch, i){
+  ch.bandBypassed[i] = !ch.bandBypassed[i];
+  ch.bands[i].gain.value = ch.bandBypassed[i] ? 0 : ch.bandStoredGain[i];
+}
+function resetEQ(ch){
+  ch.bands.forEach(function(b, i){
+    b.frequency.value = ch.eqFreqDefaults[i];
+    b.Q.value = 1;
+    ch.bandBypassed[i] = false;
+    ch.bandStoredGain[i] = 0;
+    b.gain.value = 0;
+  });
+  ch.eqShape = 1;
+}
+
+// ------------------------------------------------------------------
+// LEVEL-ACCURATE COLOR — a digital console's RTA / meter bridge colors
+// by how hot a band actually is right now (quiet=green, hot=red), not
+// by a fixed rainbow tied to x position. lerpColor/levelToRTAColor give
+// every spectrum column its own color driven by its own live magnitude,
+// using the same green/amber/red thresholds as the channel meters.
+function lerpColor(hexA, hexB, t){
+  t = clamp(t, 0, 1);
+  const a = parseInt(hexA.slice(1), 16), b = parseInt(hexB.slice(1), 16);
+  const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+  const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+  const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+  return 'rgb(' + r + ',' + g + ',' + bl + ')';
+}
+function levelToRTAColor(mag){
+  mag = clamp(mag, 0, 1);
+  if (mag < 0.6) return lerpColor('#1c4a33', '#37e08c', mag / 0.6);
+  if (mag < 0.85) return lerpColor('#37e08c', '#ffb020', (mag - 0.6) / 0.25);
+  return lerpColor('#ffb020', '#ff2743', (mag - 0.85) / 0.15);
+}
+
 function computeCombinedResponseDb(bands, freqArray){
   const totalMag = new Float32Array(freqArray.length).fill(1);
   const magOut = new Float32Array(freqArray.length);
@@ -4078,6 +4157,7 @@ function openEQDetail(channelKey, label){
   modal.classList.add('show');
   buildEQNodes();
   buildEQShapeKnob();
+  buildEQBandToggles();
   requestAnimationFrame(function(){
     sizeEQCanvas();
     layoutEQNodes();
@@ -4093,6 +4173,17 @@ function closeEQDetail(){
   currentEQChannelKey = null;
 }
 document.getElementById('eqd-close').addEventListener('click', closeEQDetail);
+document.getElementById('eqd-reset-btn').addEventListener('click', function(){
+  const ch = state.channels[currentEQChannelKey];
+  if (!ch) return;
+  resetEQ(ch);
+  buildEQNodes();
+  buildEQShapeKnob();
+  buildEQBandToggles();
+  layoutEQNodes();
+  updateEQReadouts();
+  saveMixSettings();
+});
 
 function buildEQNodes(){
   const ch = state.channels[currentEQChannelKey];
@@ -4100,7 +4191,10 @@ function buildEQNodes(){
   const wrap = document.getElementById('eqd-nodes');
   wrap.innerHTML = '';
   ch.bands.forEach(function(band, i){
-    const node = el('div', { class: 'eq-node', id: 'eqd-node-' + i, style: 'background:' + EQD_NODE_COLORS[i % EQD_NODE_COLORS.length] + ';' }, [
+    const node = el('div', {
+      class: 'eq-node' + (ch.bandBypassed[i] ? ' bypassed' : ''), id: 'eqd-node-' + i,
+      style: 'background:' + EQD_NODE_COLORS[i % EQD_NODE_COLORS.length] + ';'
+    }, [
       el('span', { class: 'eq-node-label', text: band.frequency.value >= 1000 ? (band.frequency.value / 1000).toFixed(1) + 'k' : Math.round(band.frequency.value) + 'Hz' })
     ]);
     wrap.appendChild(node);
@@ -4122,6 +4216,33 @@ function buildEQShapeKnob(){
     }
   });
   wrap.appendChild(shapeKnob.el);
+}
+// One ON/OFF pill per band — bypasses that band alone (like a single
+// band's power switch on a digital console's parametric EQ) without
+// losing its frequency/gain/Q, which stays exactly where it was set so
+// flipping it back on doesn't jump anywhere.
+function buildEQBandToggles(){
+  const ch = state.channels[currentEQChannelKey];
+  const wrap = document.getElementById('eqd-band-toggles');
+  wrap.innerHTML = '';
+  if (!ch) return;
+  ch.bands.forEach(function(band, i){
+    const btn = el('button', {
+      class: 'eqd-band-toggle' + (ch.bandBypassed[i] ? '' : ' on'),
+      style: '--band-color:' + EQD_NODE_COLORS[i % EQD_NODE_COLORS.length] + ';',
+      text: 'B' + (i + 1),
+      title: (ch.bandBypassed[i] ? 'Enable' : 'Bypass') + ' band ' + (i + 1),
+      onClick: function(){
+        toggleBandBypass(ch, i);
+        btn.classList.toggle('on', !ch.bandBypassed[i]);
+        const node = document.getElementById('eqd-node-' + i);
+        if (node) node.classList.toggle('bypassed', ch.bandBypassed[i]);
+        updateEQReadouts();
+        saveMixSettings();
+      }
+    });
+    wrap.appendChild(btn);
+  });
 }
 
 function sizeEQCanvas(){
@@ -4155,7 +4276,7 @@ function layoutEQNodes(){
   if (!ch) return;
   const wrap = document.getElementById('eqd-wrap');
   const w = wrap.clientWidth, h = wrap.clientHeight;
-  ch.bands.forEach(function(band, i){ positionNode('eqd-node-' + i, band.frequency.value, band.gain.value, w, h); });
+  ch.bands.forEach(function(band, i){ positionNode('eqd-node-' + i, band.frequency.value, ch.bandStoredGain[i], w, h); });
 }
 function positionNode(id, freq, gain, w, h){
   const node = document.getElementById(id);
@@ -4178,7 +4299,7 @@ function bindEQNodeDrag(node, bandIndex){
       const freq = clamp(xToFreq(x, rect.width), 20, 20000);
       const gain = clamp(yToGain(y, rect.height), -12, 12);
       band.frequency.value = freq;
-      band.gain.value = gain;
+      setBandGain(ch, bandIndex, gain);
       node.style.left = x + 'px';
       node.style.top = gainToY(gain, rect.height) + 'px';
       const labelEl = node.querySelector('.eq-node-label');
@@ -4200,11 +4321,11 @@ function updateEQReadouts(){
   const row = document.getElementById('eqd-readout');
   row.innerHTML = '';
   ch.bands.forEach(function(band, i){
-    const f = band.frequency.value, g = band.gain.value;
-    const txt = (f >= 1000 ? (f / 1000).toFixed(1) + 'k' : Math.round(f) + 'Hz') + ' ' + (g > 0 ? '+' : '') + g.toFixed(1) + 'dB';
+    const f = band.frequency.value, g = ch.bandStoredGain[i];
+    const txt = (f >= 1000 ? (f / 1000).toFixed(1) + 'k' : Math.round(f) + 'Hz') + ' ' + (g > 0 ? '+' : '') + g.toFixed(1) + 'dB' + (ch.bandBypassed[i] ? ' (off)' : '');
     const b = document.createElement('b');
     b.textContent = txt;
-    row.appendChild(el('span', {}, ['B' + (i + 1) + ' ', b]));
+    row.appendChild(el('span', { class: ch.bandBypassed[i] ? 'eqd-readout-off' : '' }, ['B' + (i + 1) + ' ', b]));
   });
 }
 function startEQAnimation(){
@@ -4256,25 +4377,26 @@ function drawMiniEqCurve(canvas, ch){
   if (!cw || !chh) return;
   c2d.clearRect(0, 0, cw, chh);
 
-  // live spectrum fill, reading real signal from this channel's analyser
+  // live spectrum fill, reading real signal from this channel's analyser —
+  // each column is colored by its OWN level (green/amber/red, same as a
+  // console's RTA/meter bridge), not a fixed rainbow tied to position.
   if (ch.specAnalyser && ctx){
     const bufferLen = ch.specAnalyser.frequencyBinCount;
     if (!canvas._specData || canvas._specData.length !== bufferLen) canvas._specData = new Uint8Array(bufferLen);
     const data = canvas._specData;
     ch.specAnalyser.getByteFrequencyData(data);
     const sampleRate = ctx.sampleRate;
-    const grad = c2d.createLinearGradient(0, 0, cw, 0);
-    grad.addColorStop(0, '#5b6bff'); grad.addColorStop(0.35, '#37e08c'); grad.addColorStop(0.7, '#e0c22e'); grad.addColorStop(1, '#ff2743');
-    c2d.beginPath(); c2d.moveTo(0, chh);
+    c2d.globalAlpha = 0.55;
     for (let x = 0; x < cw; x++){
       const freq = xToFreq(x, cw);
       let bin = Math.round(freq * ch.specAnalyser.fftSize / sampleRate);
       bin = clamp(bin, 0, bufferLen - 1);
       const mag = data[bin] / 255;
-      c2d.lineTo(x, chh - mag * chh * 0.9);
+      const y = chh - mag * chh * 0.9;
+      c2d.fillStyle = levelToRTAColor(mag);
+      c2d.fillRect(x, y, 1, chh - y);
     }
-    c2d.lineTo(cw, chh); c2d.closePath();
-    c2d.fillStyle = grad; c2d.globalAlpha = 0.5; c2d.fill(); c2d.globalAlpha = 1;
+    c2d.globalAlpha = 1;
   }
 
   // exact combined EQ response curve, on top of the spectrum
@@ -4388,42 +4510,24 @@ function drawSpectrum(canvas, analyser){
   analyser.getByteFrequencyData(data);
   const sampleRate = ctx ? ctx.sampleRate : 44100;
 
-  const grad = c2d.createLinearGradient(0, 0, w, 0);
-  grad.addColorStop(0, '#5b6bff');
-  grad.addColorStop(0.25, '#4ea8ff');
-  grad.addColorStop(0.5, '#37e08c');
-  grad.addColorStop(0.72, '#e0c22e');
-  grad.addColorStop(1, '#ff2743');
-
-  c2d.beginPath();
-  c2d.moveTo(0, h);
+  // Every column is colored by its OWN live level — green/amber/red, the
+  // same convention as a digital console's RTA and channel meters — instead
+  // of a fixed rainbow tied to horizontal position. A quiet band reads
+  // green regardless of where it sits on the frequency axis; a hot one
+  // reads red. A brighter 2px cap traces the actual level like a peak line.
   for (let x = 0; x < w; x++){
     const freq = xToFreq(x, w);
     let bin = Math.round(freq * analyser.fftSize / sampleRate);
     bin = clamp(bin, 0, bufferLen - 1);
     const mag = data[bin] / 255;
     const y = h - mag * h * 0.92;
-    c2d.lineTo(x, y);
+    const color = levelToRTAColor(mag);
+    c2d.globalAlpha = 0.5;
+    c2d.fillStyle = color;
+    c2d.fillRect(x, y, 1, h - y);
+    c2d.globalAlpha = 1;
+    c2d.fillRect(x, y, 1, 2);
   }
-  c2d.lineTo(w, h);
-  c2d.closePath();
-  c2d.fillStyle = grad;
-  c2d.globalAlpha = 0.55;
-  c2d.fill();
-  c2d.globalAlpha = 1;
-
-  c2d.strokeStyle = grad;
-  c2d.lineWidth = 1.5;
-  c2d.beginPath();
-  for (let x = 0; x < w; x++){
-    const freq = xToFreq(x, w);
-    let bin = Math.round(freq * analyser.fftSize / sampleRate);
-    bin = clamp(bin, 0, bufferLen - 1);
-    const mag = data[bin] / 255;
-    const y = h - mag * h * 0.92;
-    if (x === 0) c2d.moveTo(x, y); else c2d.lineTo(x, y);
-  }
-  c2d.stroke();
 
   c2d.strokeStyle = 'rgba(255,255,255,0.12)';
   c2d.lineWidth = 1;
@@ -4538,7 +4642,7 @@ function saveMixSettings(){
     const ch = state.channels[key];
     snapshot[key] = {
       trim: ch.trim.gain.value, pan: ch.pan.pan.value, postGain: ch.postGain.gain.value,
-      bands: ch.bands.map(function(b){ return { freq: b.frequency.value, gain: b.gain.value }; }),
+      bands: ch.bands.map(function(b, i){ return { freq: b.frequency.value, gain: ch.bandStoredGain[i], bypassed: ch.bandBypassed[i] }; }),
       eqShape: ch.eqShape,
       compEnabled: ch.compEnabled, compThreshold: ch.compThreshold, compRatio: ch.compRatio, compAttack: ch.compAttack, compRelease: ch.compRelease,
       delayTime: ch.delayNode.delayTime.value, delayFeedback: ch.delayFeedback.gain.value, delayMixValue: ch.delayMixValue, delayEnabled: ch.delayEnabled,
@@ -4650,7 +4754,12 @@ function restoreMixSettings(){
       ch.pan.pan.value = s.pan != null ? s.pan : 0;
       if (Array.isArray(s.bands)){
         s.bands.forEach(function(bandSnap, i){
-          if (ch.bands[i] && bandSnap){ ch.bands[i].frequency.value = bandSnap.freq; ch.bands[i].gain.value = bandSnap.gain; }
+          if (ch.bands[i] && bandSnap){
+            ch.bands[i].frequency.value = bandSnap.freq;
+            ch.bandStoredGain[i] = bandSnap.gain != null ? bandSnap.gain : 0;
+            ch.bandBypassed[i] = !!bandSnap.bypassed;
+            ch.bands[i].gain.value = ch.bandBypassed[i] ? 0 : ch.bandStoredGain[i];
+          }
         });
       }
       if (s.eqShape != null){ ch.eqShape = s.eqShape; ch.bands.forEach(function(b){ b.Q.value = clamp(s.eqShape, 0.25, 9); }); }
