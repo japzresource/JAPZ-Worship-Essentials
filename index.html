@@ -427,7 +427,8 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .settings-note{ font-size:11.5px; color:var(--text-dim); line-height:1.5; margin-top:6px; }
 
 /* ============================= MIX SECTION ============================= */
-.mix-strips{ display:flex; gap:18px; overflow-x:auto; padding:6px 2px 14px; align-items:flex-start; }
+.mix-strips{ display:flex; gap:18px; overflow-x:auto; padding:6px 2px 14px; align-items:flex-start; scrollbar-width:none; -ms-overflow-style:none; }
+.mix-strips::-webkit-scrollbar{ display:none; }
 .mix-strip{ flex:0 0 190px; display:flex; flex-direction:column; align-items:center; gap:12px; background:var(--panel-2); border:1px solid var(--border-strong); border-radius:14px; padding:16px 12px; }
 .mix-strip.master-strip{ background:linear-gradient(180deg,#241318,#161014); border-color:rgba(255,39,67,0.3); }
 .mix-strip.sends-master-strip{ border-style:dashed; border-color:var(--border-strong); }
@@ -579,6 +580,11 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .multiview-panel-body .fader-track{ height:64px; }
 .multiview-panel-body .strip-buttons{ gap:6px; }
 .multiview-panel-body .output-select-wrap{ display:none; }
+.multiview-panel-body #mv-slot-queue{ display:flex; flex-direction:column; gap:14px; }
+.multiview-panel-body .media-queue-panel{ flex:0 0 auto; width:100%; max-height:none; min-height:0; padding:12px; }
+.multiview-panel-body .media-queue-list{ min-height:100px; }
+#mv-slot-queue #loop-queue-panel::before{ content:'Loops'; display:block; font-family:var(--font-mono); font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px; }
+#mv-slot-queue #music-queue-panel::before{ content:'Music'; display:block; font-family:var(--font-mono); font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px; }
 
 /* ============================= RESPONSIVE ============================= */
 @media (max-width:640px){
@@ -786,6 +792,8 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         <div class="mv-row mv-row-2" id="mv-row-2">
           <div class="multiview-panel" id="mv-panel-music" style="flex:0.8 1 0;"><div class="multiview-panel-header">Music</div><div class="multiview-panel-body" id="mv-slot-music"></div></div>
           <div class="mv-vsplit" id="mv-vsplit-3"></div>
+          <div class="multiview-panel" id="mv-panel-queue" style="flex:0.8 1 0;"><div class="multiview-panel-header">Queue</div><div class="multiview-panel-body" id="mv-slot-queue"></div></div>
+          <div class="mv-vsplit" id="mv-vsplit-4"></div>
           <div class="multiview-panel" id="mv-panel-mix" style="flex:1.6 1 0;"><div class="multiview-panel-header">Mix</div><div class="multiview-panel-body" id="mv-slot-mix"></div></div>
         </div>
       </div>
@@ -1673,7 +1681,7 @@ function loadAudioFromUrl(url, pad, fileName, onLoaded){
    Skips any pad that already has audio (restored from a prior session,
    or manually uploaded) so it never clobbers a user's own file.
 ============================================================ */
-function preloadGithubSoundPads(){
+function preloadGithubSoundPads(waitPromise){
   ensureAudio();
   const decodeCache = {}; // key id -> Promise<{buffer, raw, fileName} | null>
   // Firing all 12 keys' large WAV fetches at once is what was causing the
@@ -1681,7 +1689,7 @@ function preloadGithubSoundPads(){
   // under that much simultaneous large-media traffic. Pulling requests
   // through a small concurrency pool (plus the retry-with-backoff in
   // fetchAndDecodeWithRetry) makes every pad load reliably instead.
-  const PRELOAD_CONCURRENCY = 3;
+  const PRELOAD_CONCURRENCY = 5;
   let active = 0;
   const queue = [];
   function runNext(){
@@ -1710,28 +1718,36 @@ function preloadGithubSoundPads(){
     });
     return decodeCache[key];
   }
-  const tasks = [];
-  CHROMATIC_KEYS.forEach(function(k){
-    const pad = state.soundPads[k.id];
-    if (pad.buffer || pad.loading) return; // already loaded or already in flight — leave it alone
-    pad.loading = true;
-    pad.loadError = false;
-    tasks.push(fetchDecode(k.id).then(function(result){
-      pad.loading = false;
-      if (result){
-        pad.buffer = result.buffer;
-        pad.rawArrayBuffer = result.raw;
-        pad.fileName = result.fileName;
-        scheduleSoundPadSave(k.id);
-        if (pad.playOnLoad){ pad.playOnLoad = false; startSoundPad(pad); }
-      } else {
-        pad.loadError = true;
-      }
-      refreshAllUI();
-    }));
+  // Kick off every key's download+decode right now. This is pure network/
+  // CPU work with no dependency on the user's restored state (custom
+  // uploads, saved settings, etc.), so it starts as soon as login
+  // succeeds instead of waiting for storage restore to finish first —
+  // by the time restore is done, several pads are often already decoded.
+  CHROMATIC_KEYS.forEach(function(k){ fetchDecode(k.id); });
+  return Promise.resolve(waitPromise).catch(function(){}).then(function(){
+    const tasks = [];
+    CHROMATIC_KEYS.forEach(function(k){
+      const pad = state.soundPads[k.id];
+      if (pad.buffer || pad.loading) return; // already loaded (e.g. a restored custom upload) or already in flight — leave it alone
+      pad.loading = true;
+      pad.loadError = false;
+      tasks.push(fetchDecode(k.id).then(function(result){
+        pad.loading = false;
+        if (result){
+          pad.buffer = result.buffer;
+          pad.rawArrayBuffer = result.raw;
+          pad.fileName = result.fileName;
+          scheduleSoundPadSave(k.id);
+          if (pad.playOnLoad){ pad.playOnLoad = false; startSoundPad(pad); }
+        } else {
+          pad.loadError = true;
+        }
+        refreshAllUI();
+      }));
+    });
+    refreshAllUI();
+    return Promise.all(tasks);
   });
-  refreshAllUI();
-  return Promise.all(tasks);
 }
 
 function fileBaseName(name){
@@ -3423,8 +3439,10 @@ function stopAllAudio(){
    Leaving Multiview moves them back to their normal tabs.
 ============================================================ */
 const MULTIVIEW_SLOTS = { soundpads:'section-soundpads', soundboard:'section-soundboard', loops:'section-loops', music:'section-music', mix:'section-mix' };
+const MULTIVIEW_QUEUE_IDS = ['loop-queue-panel', 'music-queue-panel'];
 let multiviewActive = false;
 const multiviewHomes = {};
+const multiviewQueueHomes = {};
 function enterMultiview(){
   if (multiviewActive) return;
   multiviewActive = true;
@@ -3436,11 +3454,28 @@ function enterMultiview(){
     multiviewHomes[key] = { parent: panelContent.parentNode, next: panelContent.nextSibling };
     document.getElementById('mv-slot-' + key).appendChild(panelContent);
   });
+  // Pull the Loop/Music queue panels out of their tiles and into their own
+  // dedicated Queue tile — this is what those two tiles were losing most
+  // of their space to.
+  const queueSlot = document.getElementById('mv-slot-queue');
+  MULTIVIEW_QUEUE_IDS.forEach(function(id){
+    const q = document.getElementById(id);
+    if (!q) return;
+    multiviewQueueHomes[id] = { parent: q.parentNode, next: q.nextSibling };
+    queueSlot.appendChild(q);
+  });
 }
 function exitMultiview(){
   if (!multiviewActive) return;
   multiviewActive = false;
   document.getElementById('app').classList.remove('multiview-mode');
+  MULTIVIEW_QUEUE_IDS.forEach(function(id){
+    const home = multiviewQueueHomes[id];
+    const q = document.getElementById(id);
+    if (!home || !q) return;
+    if (home.next && home.next.parentNode === home.parent) home.parent.insertBefore(q, home.next);
+    else home.parent.appendChild(q);
+  });
   Object.keys(MULTIVIEW_SLOTS).forEach(function(key){
     const home = multiviewHomes[key];
     const slot = document.getElementById('mv-slot-' + key);
@@ -3482,7 +3517,8 @@ function initMultiviewSplitter(handleId, direction, elA, elB){
 function initAllMultiviewSplitters(){
   initMultiviewSplitter('mv-vsplit-1', 'row', document.getElementById('mv-panel-soundpads'), document.getElementById('mv-panel-soundboard'));
   initMultiviewSplitter('mv-vsplit-2', 'row', document.getElementById('mv-panel-soundboard'), document.getElementById('mv-panel-loops'));
-  initMultiviewSplitter('mv-vsplit-3', 'row', document.getElementById('mv-panel-music'), document.getElementById('mv-panel-mix'));
+  initMultiviewSplitter('mv-vsplit-3', 'row', document.getElementById('mv-panel-music'), document.getElementById('mv-panel-queue'));
+  initMultiviewSplitter('mv-vsplit-4', 'row', document.getElementById('mv-panel-queue'), document.getElementById('mv-panel-mix'));
   initMultiviewSplitter('mv-hsplit-1', 'col', document.getElementById('mv-row-1'), document.getElementById('mv-row-2'));
 }
 
@@ -5335,12 +5371,12 @@ function attemptEnter(){
   document.getElementById('password-screen').classList.add('hide');
   ensureAudio();
   const restorePromise = restoreAllState().catch(function(){});
-  // Start fetching every Sound Pad's audio now, in the background, so by the
-  // time the person reaches the Sound Pads screen a tap is just instant
-  // play/stop — not "wait for it to load then tap again". Doesn't block
-  // entering the app; it keeps loading (and the UI keeps updating) even
-  // after the app screen is already showing.
-  restorePromise.then(function(){ preloadGithubSoundPads(); });
+  // Start fetching every Sound Pad's audio right now, immediately, in
+  // parallel with state restore — not after it finishes — so the biggest
+  // chunk of load time (network) overlaps with restore instead of
+  // stacking after it. Doesn't block entering the app; it keeps loading
+  // (and the UI keeps updating) even after the app screen is already showing.
+  preloadGithubSoundPads(restorePromise);
   playIntroSequence(function(){
     buildMixUI();
     refreshAllUI();
