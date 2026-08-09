@@ -943,7 +943,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
     </div>
     <div class="modal-body">
       <div id="sdd-body"></div>
-      <div class="settings-note">Sends an extra copy of just this channel to another output device at the same time — for a monitor mix, a separate recording interface, or a second speaker set. Tapped pre-fader, so this channel's fader and mute don't touch it — only the volume slider on each send row below controls how loud it is.</div>
+      <div class="settings-note">Sends an extra copy of just this channel to another output device at the same time — for a monitor mix, a separate recording interface, or a second speaker set. The channel fader doesn't touch it — only the volume slider on each send row below does — but Mute silences it along with the main channel.</div>
     </div>
   </div>
 </div>
@@ -1309,6 +1309,15 @@ function buildChannel(name, opts){
   const postGain = ctx.createGain(); postGain.gain.value = 1;
   pan.connect(postGain); postGain.connect(fader);
 
+  // Sends branch off here — after all EQ/FX/gain staging, but on a
+  // separate path from the fader. sendTap only ever moves with Mute
+  // (see toggleMute()), never with the fader, so a send stays exactly
+  // as loud as its own volume slider says regardless of where the
+  // fader sits, while still going silent along with everything else
+  // when the channel is muted.
+  const sendTap = ctx.createGain(); sendTap.gain.value = 1;
+  postGain.connect(sendTap);
+
   // Mute is its own gain stage, completely separate from the fader gain.
   // This is what lets a channel go silent without ever touching
   // fader.gain.value (and therefore never moving the fader UI) — the fader
@@ -1324,7 +1333,7 @@ function buildChannel(name, opts){
   soloGain.connect(analyser);
   soloGain.connect(specAnalyser);
 
-  chain.pan = pan; chain.postGain = postGain; chain.fader = fader; chain.muteGain = muteGain; chain.soloGain = soloGain;
+  chain.pan = pan; chain.postGain = postGain; chain.sendTap = sendTap; chain.fader = fader; chain.muteGain = muteGain; chain.soloGain = soloGain;
   chain.analyser = analyser; chain.specAnalyser = specAnalyser; chain.meterEl = null;
   return chain;
 }
@@ -3675,6 +3684,10 @@ function toggleMute(channelKey, btn){
   // stored value, are left completely alone. The fader stays exactly where
   // you set it; mute is just a switch on top of it, same as a real console.
   ch.muteGain.gain.value = ch.muted ? 0 : 1;
+  // Sends branch off on their own path (see sendTap in buildChannel) so
+  // the fader can't touch them — but Mute is meant to silence everything
+  // this strip feeds, sends included, so it's applied there too.
+  ch.sendTap.gain.value = ch.muted ? 0 : 1;
   btn.classList.toggle('on', ch.muted);
   const strip = btn.closest('.mix-strip');
   if (strip && strip._faderWrap){
@@ -3976,11 +3989,13 @@ function buildMasterStrip(){
    limitation, not something the page can fix.
 
    INDEPENDENCE: every send (master or per-channel) is tapped from
-   postGain — after EQ/FX, but before that strip's own fader/mute — and
-   fed through its own dedicated GainNode (send.target.gain, the send's
-   volume slider). So a send only changes when its own toggle or slider
-   is touched; it does not move when the strip's fader is pulled down,
-   muted, or (for channels) affected by another channel being soloed.
+   sendTap — a dedicated branch off postGain (after EQ/FX) that runs in
+   parallel with that strip's fader, not behind it — and fed through
+   its own dedicated GainNode (send.target.gain, the send's volume
+   slider). A send's level only changes when its own toggle or slider
+   is touched, or when the strip's Mute is hit (muting is meant to
+   silence everything the strip feeds, so it drives sendTap alongside
+   the main mute stage); the fader alone never reaches a send.
 ============================================================ */
 function supportsAudioContextSink(){
   return !!(window.AudioContext && window.AudioContext.prototype && window.AudioContext.prototype.setSinkId);
@@ -4036,10 +4051,10 @@ function setSendEnabled(i, enabled){
   const send = ensureSendSlot(i);
   send.enabled = enabled;
   if (enabled){
-    masterBus.postGain.connect(send.target.gain);
+    masterBus.sendTap.connect(send.target.gain);
     send.target.activate();
   } else {
-    try { masterBus.postGain.disconnect(send.target.gain); } catch(e){}
+    try { masterBus.sendTap.disconnect(send.target.gain); } catch(e){}
   }
   saveMixSettings();
 }
@@ -4111,12 +4126,14 @@ function buildSendsUI(){
    independent of what's happening on the other channels. Each send
    also gets its own volume, so e.g. a Bluetooth speaker and a USB
    speaker fed from the same channel can be balanced independently.
-   Tapped from ch.postGain — after EQ/compressor/delay/reverb, but
-   BEFORE this channel's fader, mute and solo. That's deliberate: a
-   send has its own on/off and its own volume fader in this panel, so
-   pulling the channel's main fader down (or muting/soloing on the
-   console) is only supposed to affect the main mix, not silence a
-   send that's feeding its own independent speaker.
+   Tapped from ch.sendTap — a dedicated branch off postGain (after
+   EQ/compressor/delay/reverb) that sits in parallel with the fader,
+   not behind it. A send has its own on/off and its own volume slider
+   in this panel, so pulling the channel's main fader down is only
+   supposed to affect the main mix, not a send feeding its own
+   independent speaker. Mute is the one exception: it's meant to
+   silence everything this channel feeds, so toggleMute() drives both
+   muteGain (main path) and sendTap (send path) together.
 ============================================================ */
 function ensureChannelSendSlot(ch, i){
   ch.sends = ch.sends || [];
@@ -4129,10 +4146,10 @@ function setChannelSendEnabled(ch, i, enabled){
   const send = ensureChannelSendSlot(ch, i);
   send.enabled = enabled;
   if (enabled){
-    ch.postGain.connect(send.target.gain);
+    ch.sendTap.connect(send.target.gain);
     send.target.activate();
   } else {
-    try { ch.postGain.disconnect(send.target.gain); } catch(e){}
+    try { ch.sendTap.disconnect(send.target.gain); } catch(e){}
   }
   saveMixSettings();
 }
@@ -4911,6 +4928,7 @@ function restoreMixSettings(){
       ch.lastFaderValue = s.lastFaderValue != null ? s.lastFaderValue : 1;
       ch.muted = !!s.muted;
       ch.muteGain.gain.value = ch.muted ? 0 : 1;
+      ch.sendTap.gain.value = ch.muted ? 0 : 1;
       if (Array.isArray(s.sends)){
         s.sends.forEach(function(sendSnap, i){
           if (!sendSnap) return;
@@ -4923,7 +4941,7 @@ function restoreMixSettings(){
           }
           if (sendSnap.enabled && sendSnap.deviceId){
             send.enabled = true;
-            try { ch.postGain.connect(send.target.gain); } catch(e){}
+            try { ch.sendTap.connect(send.target.gain); } catch(e){}
             send.target.activate();
           }
         });
@@ -4939,6 +4957,7 @@ function restoreMixSettings(){
       masterBus.lastFaderValue = snap.master.lastFaderValue != null ? snap.master.lastFaderValue : 1;
       masterBus.muted = !!snap.master.muted;
       masterBus.muteGain.gain.value = masterBus.muted ? 0 : 1;
+      masterBus.sendTap.gain.value = masterBus.muted ? 0 : 1;
       if (Array.isArray(snap.master.sends)){
         snap.master.sends.forEach(function(sendSnap, i){
           if (!sendSnap) return;
@@ -4951,7 +4970,7 @@ function restoreMixSettings(){
           }
           if (sendSnap.enabled && sendSnap.deviceId){
             send.enabled = true;
-            try { masterBus.postGain.connect(send.target.gain); } catch(e){}
+            try { masterBus.sendTap.connect(send.target.gain); } catch(e){}
             send.target.activate();
           }
         });
