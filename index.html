@@ -192,6 +192,11 @@ button:disabled{ opacity:0.35; pointer-events:none; }
   color:var(--text-muted); font-family:var(--font-display); font-weight:700; font-size:19px;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; overflow:hidden;
   --key-fade:0.15s;
+  /* Tells the browser this element is tapped, not double-tapped or
+     panned/zoomed, so it can fire the pointerdown that triggers playback
+     immediately instead of holding it briefly to see if a second tap or a
+     scroll gesture follows. */
+  touch-action:manipulation;
   box-shadow:0 0 0 0 rgba(179,18,31,0), 0 0 0 rgba(179,18,31,0);
   /* Only the glow (box-shadow) follows the slow, audio-matched --key-fade
      duration. border-color/background/color stay on a fixed, fast
@@ -222,6 +227,7 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 .pad-card{
   position:relative; aspect-ratio:1/1; border-radius:14px; background:var(--card); border:1px solid var(--border-strong);
   padding:12px 10px 10px; display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden;
+  touch-action:manipulation; /* fire the trigger on touch-down, not after a double-tap/scroll timeout */
   transition:transform 0.08s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .pad-card:hover{ border-color:rgba(255,255,255,0.22); }
@@ -1780,9 +1786,12 @@ function buildSoundPadCell(k){
   // No corner icons on Sound Pad cells — sounds auto-load from the library
   // and every pad loops seamlessly by itself, so there's nothing to upload,
   // replace, or toggle here. Just the key and its state.
+  // Triggered on pointerdown, not click, so the key-change crossfade starts
+  // the instant a finger/mouse touches the cell rather than waiting for it
+  // to be released — see the matching comment in buildDrumPadEl.
   const wrap = el('div', {
     class: classes.join(' '), title: k.sub ? (k.label + ' / ' + k.sub) : k.label,
-    onClick: function(e){ flashEl(wrap); onSoundPadClick(pad); }
+    onPointerdown: function(e){ if (e.button != null && e.button !== 0) return; flashEl(wrap); onSoundPadClick(pad); }
   }, [
     el('div', { class: 'key-cell-label', text: k.label }),
     el('div', { class: 'key-cell-sub', text: pad.loading ? (pad.playOnLoad ? 'Loading\u2026 will play' : 'Loading\u2026') : (pad.buffer ? '' : (pad.loadError ? '\u26A0 Load failed \u2014 tap to retry' : 'Tap to play')) })
@@ -2492,6 +2501,7 @@ function buildDrumPadEl(pad){
 
   const nameInput = el('input', {
     class: 'pad-name-label', type: 'text', value: pad.name,
+    onPointerdown: function(e){ e.stopPropagation(); },
     onClick: function(e){ e.stopPropagation(); },
     onChange: function(e){ pad.name = e.target.value || pad.name; scheduleDrumPadSave(pad); }
   });
@@ -2501,6 +2511,7 @@ function buildDrumPadEl(pad){
 
   const cornerIcon = el('button', {
     class: 'corner-icon right', html: svgIcon(pad.buffer ? 'edit' : 'upload', 11), title: pad.buffer ? 'Edit sound' : 'Upload sound',
+    onPointerdown: function(e){ e.stopPropagation(); },
     onClick: function(e){
       e.stopPropagation();
       if (!pad.buffer) openFilePicker(pad, function(){ scheduleDrumPadSave(pad); });
@@ -2511,7 +2522,14 @@ function buildDrumPadEl(pad){
   const shortcutKey = padIdx !== -1 ? padShortcuts[padIdx] : null;
   const shortcutBadge = shortcutKey ? el('div', { class: 'pad-shortcut-badge', text: shortcutKey.toUpperCase(), title: 'Keyboard shortcut: ' + shortcutKey.toUpperCase() }) : null;
 
-  const wrap = el('div', { class: classes.join(' '), style: '--pad-hue:' + hue + ';', onClick: function(){
+  // Trigger on pointerdown (the instant a finger/mouse touches the pad),
+  // not on click (which only fires after the finger/button is released).
+  // That press-to-release gap was real, perceptible latency on top of
+  // everything the audio engine already does — this is the same reason a
+  // real hardware drum pad fires the moment you hit it, not when you lift
+  // off. Right-click/middle-click are ignored so they don't misfire this.
+  const wrap = el('div', { class: classes.join(' '), style: '--pad-hue:' + hue + ';', onPointerdown: function(e){
+    if (e.button != null && e.button !== 0) return;
     if (pad.loading) return;
     if (!pad.buffer){ flashEl(wrap); openFilePicker(pad, function(){ scheduleDrumPadSave(pad); }); return; }
     if (editModeOn){ flashEl(wrap); openPadEditor(pad, 'drum'); return; }
