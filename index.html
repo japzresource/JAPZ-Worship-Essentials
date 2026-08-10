@@ -1655,7 +1655,7 @@ function wait(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
 function fetchAndDecodeWithRetry(url, attempts){
   attempts = attempts || 3;
   function attempt(n){
-    return fetch(url, { cache: 'force-cache', priority: 'low' }).then(function(r){
+    return fetch(url, { cache: 'force-cache' }).then(function(r){
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.arrayBuffer();
     }).then(function(raw){
@@ -5464,7 +5464,17 @@ function attemptEnter(){
   // video has finished or been skipped, so the two aren't fighting over
   // the same audio output device at the same moment.
   if (!ctx) initAudio();
-  const restorePromise = restoreAllState().catch(function(){});
+  // Kick off Sound Pad restore+preload as its own thread, separate from the
+  // rest of app-state restore (settings/drum pads/loops/music), so a slow
+  // GitHub fetch never has to wait behind unrelated IndexedDB reads before
+  // it even starts. restoreSoundPads() has to finish first, though — it's
+  // what tells us which pads already have a locally-saved file (from a
+  // prior session or a manual upload) so preload never clobbers those or
+  // re-fetches them for nothing.
+  const soundPadsRestoredPromise = hasStorage ? restoreSoundPads().catch(function(){}) : Promise.resolve();
+  const restorePromise = hasStorage
+    ? Promise.all([restoreSettings(), soundPadsRestoredPromise, restoreDrumPads(), restoreLoopPads(), restoreMusicPads(), restoreMixSettings(), refreshPresetDropdown()]).catch(function(){})
+    : Promise.resolve();
   // Start fetching every Sound Pad's audio now, in the background, so by the
   // time the person reaches the Sound Pads screen a tap is just instant
   // play/stop — not "wait for it to load then tap again". This never blocks
@@ -5472,7 +5482,7 @@ function attemptEnter(){
   // waits on, so a slow pad fetch can't leave the person stuck on the intro
   // screen — it just keeps loading (and the UI keeps updating) in the
   // background even after the app screen is already showing.
-  restorePromise.then(function(){ preloadGithubSoundPads(); });
+  soundPadsRestoredPromise.then(function(){ preloadGithubSoundPads(); });
   playIntroSequence(function(){
     armAudioForPlayback();
     buildMixUI();
