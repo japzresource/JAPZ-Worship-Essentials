@@ -102,12 +102,20 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 #intro-screen.show{ opacity:1; visibility:visible; pointer-events:auto; }
 #intro-screen.hide{ opacity:0; visibility:hidden; pointer-events:none; }
 #intro-video{ max-width:100%; max-height:100%; display:none; }
+/* Chrome/Edge auto-inject a hover control strip (Picture-in-Picture, cast,
+   etc.) on any playing <video>, even with no "controls" attribute. This is
+   pure browser chrome, not something we render — hide every variant of it
+   so the intro reads as a plain animation, not "a video that's playing". */
+#intro-video::-webkit-media-controls,
+#intro-video::-webkit-media-controls-panel,
+#intro-video::-webkit-media-controls-start-playback-button,
+#intro-video::-internal-media-controls-overlay-cast-button{
+  display:none !important; opacity:0 !important; pointer-events:none !important;
+}
 #intro-fallback{ display:flex; flex-direction:column; align-items:center; opacity:0; transition:opacity 1.2s ease; }
 #intro-fallback.reveal{ opacity:1; }
 .intro-tagline{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.4em; color:var(--text-dim); margin-top:14px; text-transform:uppercase; opacity:0; transform:translateY(8px); transition:opacity 0.8s ease 0.4s, transform 0.8s ease 0.4s; }
 .intro-tagline.reveal{ opacity:1; transform:translateY(0); }
-.intro-skip{ position:absolute; bottom:26px; right:26px; padding:8px 14px; border-radius:7px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); color:var(--text-muted); font-family:var(--font-mono); font-size:11px; }
-.intro-skip:hover{ color:#fff; border-color:var(--accent); }
 
 /* ============================= LOGIN NAME (kept minimal, merged into password screen) ============================= */
 
@@ -621,12 +629,11 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 
 <!-- ============================= BRAND INTRO ============================= -->
 <div id="intro-screen">
-  <video id="intro-video" src="WORSHIP%20ESSENTIAL.mp4" playsinline></video>
+  <video id="intro-video" src="WORSHIP%20ESSENTIAL.mp4" playsinline disablepictureinpicture disableRemotePlayback preload="auto" x-webkit-airplay="deny" controlsList="nodownload nofullscreen noremoteplayback noplaybackrate"></video>
   <div id="intro-fallback">
     <div class="brand-mark">Worship Essentials</div>
     <div class="intro-tagline">Sound Pads · Soundboard · Loops · Mix</div>
   </div>
-  <button class="intro-skip" id="intro-skip-btn">Skip ▸</button>
 </div>
 
 <!-- ============================= MAIN APP ============================= -->
@@ -1648,7 +1655,7 @@ function wait(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
 function fetchAndDecodeWithRetry(url, attempts){
   attempts = attempts || 3;
   function attempt(n){
-    return fetch(url, { cache: 'force-cache', priority: 'high' }).then(function(r){
+    return fetch(url, { cache: 'force-cache', priority: 'low' }).then(function(r){
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.arrayBuffer();
     }).then(function(raw){
@@ -5493,9 +5500,9 @@ function playIntroSequence(onDone, waitPromise){
   function finish(){
     if (finished) return;
     finished = true;
+    clearTimeout(stallTimer);
     Promise.resolve(waitPromise).then(onDone);
   }
-  document.getElementById('intro-skip-btn').onclick = finish;
 
   function revealFallbackVisual(){
     fallback.style.display = 'flex';
@@ -5512,6 +5519,27 @@ function playIntroSequence(onDone, waitPromise){
     revealFallbackVisual();
     setTimeout(finish, 3600);
   }
+
+  // Watchdog: no matter what the video does — never starts, starts then
+  // stalls mid-buffer, or the 'ended' event just never fires — this is the
+  // one guarantee that the intro always lets the person into the studio.
+  // It's reset every time playback actually makes progress (timeupdate),
+  // so a normal, smoothly-playing video never trips it; only a genuine
+  // stall (no progress for 8s straight) or a video that never got going at
+  // all (6s) does.
+  let stallTimer = null;
+  function armStallTimer(ms){
+    clearTimeout(stallTimer);
+    stallTimer = setTimeout(function(){
+      if (finished) return;
+      if (!videoWorked){ showFallback(); return; }
+      // Video did start but has stopped making progress — stop waiting on
+      // it and just move on; audio (if still playing) isn't interrupted,
+      // it simply won't be watched from the studio screen.
+      finish();
+    }, ms);
+  }
+  video.addEventListener('timeupdate', function(){ armStallTimer(8000); });
 
   // On some devices (older Android WebViews especially) the browser can
   // decode this file's AUDIO track but not its VIDEO track, and will
@@ -5542,6 +5570,7 @@ function playIntroSequence(onDone, waitPromise){
     if (p && typeof p.then === 'function'){
       p.then(function(){
         videoWorked = true;
+        armStallTimer(8000);
         if (!noVideoFrames){
           video.style.display = 'block';
           fallback.style.display = 'none';
@@ -5552,6 +5581,7 @@ function playIntroSequence(onDone, waitPromise){
       });
     } else {
       videoWorked = true;
+      armStallTimer(8000);
       if (!noVideoFrames){
         video.style.display = 'block';
         fallback.style.display = 'none';
@@ -5560,7 +5590,7 @@ function playIntroSequence(onDone, waitPromise){
   } catch(e){ console.error('[JAPZ intro] video.play() threw:', e); showFallback(); }
   // Safety net only — if the video hasn't started playing within a few
   // seconds (slow connection, big file), fall back instead of hanging forever.
-  setTimeout(function(){ if (!videoWorked) showFallback(); }, 6000);
+  armStallTimer(6000);
 }
 
 /* ============================================================
