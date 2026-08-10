@@ -1296,6 +1296,7 @@ state.musicPads = [];
 // see startSoundPad() for why this matters.
 function ensureAudio(){
   if (!ctx) initAudio();
+  armAudioForPlayback();
   if (ctx && ctx.state === 'suspended'){
     return ctx.resume().catch(function(){});
   }
@@ -1481,6 +1482,37 @@ function initAudio(){
     state.channels[key].analyser.connect(masterBus.input);
   });
 
+  // Don't start producing any real audio yet if the intro video/skip is
+  // still in play — see armAudioForPlayback() below. Building this graph
+  // (and being able to decodeAudioData with it) doesn't require the
+  // context to actually be running, so it's safe to leave it suspended
+  // here; armAudioForPlayback() resumes it and starts the keep-alive tone
+  // once the intro is out of the way.
+  if (ctx.state === 'running' && !audioArmed){
+    try { ctx.suspend(); } catch(e){}
+  }
+
+  ['pointerdown', 'keydown', 'touchstart'].forEach(function(evt){
+    document.addEventListener(evt, function(){ if (audioArmed && ctx && ctx.state === 'suspended') ctx.resume().catch(function(){}); }, { passive: true });
+  });
+  document.addEventListener('visibilitychange', function(){
+    if (audioArmed && !document.hidden && ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
+  });
+}
+
+// Set once the intro video/fallback has actually finished (or been
+// skipped) — see attemptEnter()/playIntroSequence(). Guards ensureAudio()
+// and the auto-resume listeners above so nothing tries to open a second,
+// competing live audio stream while the intro's own video+audio is still
+// playing. Prior to this being true, initAudio() only builds the graph
+// (needed so file restoration can decodeAudioData in the background) —
+// it deliberately stays suspended and silent.
+let audioArmed = false;
+function armAudioForPlayback(){
+  if (audioArmed) return;
+  audioArmed = true;
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(function(){});
   // KEEP-ALIVE — prevents the "UI flashes on instantly, sound arrives ~1-2s
   // later" bug. Browsers (Chrome/Android WebViews especially) auto-suspend
   // an AudioContext after a stretch of true silence to save power. Every
@@ -1500,17 +1532,6 @@ function initAudio(){
   keepAliveOsc.connect(keepAliveGain);
   keepAliveGain.connect(ctx.destination); // straight to destination — bypasses mute/fader entirely
   try { keepAliveOsc.start(); } catch(e){}
-
-  // Defensive extra layer on top of the keep-alive: opportunistically
-  // resume the context the moment the page gets any user gesture or comes
-  // back into view, so it's already 'running' well before a pad is
-  // actually pressed, instead of only reacting at press-time.
-  ['pointerdown', 'keydown', 'touchstart'].forEach(function(evt){
-    document.addEventListener(evt, function(){ if (ctx && ctx.state === 'suspended') ctx.resume().catch(function(){}); }, { passive: true });
-  });
-  document.addEventListener('visibilitychange', function(){
-    if (!document.hidden && ctx && ctx.state === 'suspended') ctx.resume().catch(function(){});
-  });
 }
 
 
@@ -5424,7 +5445,12 @@ function attemptEnter(){
     void pwScreenEl.offsetWidth;
     pwScreenEl.style.transition = '';
   }, 320);
-  ensureAudio();
+  // Build the audio graph now (needed so restoring/preloading pads can
+  // decodeAudioData in the background) but don't actually engage live
+  // audio output yet — armAudioForPlayback() does that once the intro
+  // video has finished or been skipped, so the two aren't fighting over
+  // the same audio output device at the same moment.
+  if (!ctx) initAudio();
   const restorePromise = restoreAllState().catch(function(){});
   // Start fetching every Sound Pad's audio now, in the background, so by the
   // time the person reaches the Sound Pads screen a tap is just instant
@@ -5433,6 +5459,7 @@ function attemptEnter(){
   // after the app screen is already showing.
   restorePromise.then(function(){ preloadGithubSoundPads(); });
   playIntroSequence(function(){
+    armAudioForPlayback();
     buildMixUI();
     refreshAllUI();
     renderSoundPadsUI();
