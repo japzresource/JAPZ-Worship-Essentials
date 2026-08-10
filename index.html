@@ -3085,13 +3085,25 @@ function buildNowPlayingBar(kind){
   // all times instead of only appearing once something is playing.
   updateNowPlayingBar(kind);
 }
+function getActiveTab(){
+  const activeBtn = document.querySelector('.nav-tab.active');
+  return activeBtn ? activeBtn.getAttribute('data-tab') : null;
+}
 function updateNowPlayingBar(kind){
   const bar = document.getElementById(kind + '-now-playing');
   if (!bar || !bar._title) return;
-  // Always visible now — the bar stays on screen even with nothing
-  // playing, so people always have a stable spot for transport controls.
-  bar.classList.add('show');
   const pad = findPlayingMediaPad(kind);
+  const tab = getActiveTab();
+  // Only take up space with this bar if something in it is actually
+  // playing, or its own tab/multiview panel is the one on screen right
+  // now — otherwise (e.g. viewing Music while nothing is playing in
+  // Loops) its idle twin would just sit there duplicating the one bar
+  // that's actually relevant.
+  if (!pad && tab !== kind && tab !== 'multiview'){
+    bar.classList.remove('show');
+    return;
+  }
+  bar.classList.add('show');
   const controls = [bar._playPauseBtn, bar._prevBtn, bar._nextBtn, bar._stopBtn, bar._scrubber];
   if (!pad){
     bar._title.textContent = 'Nothing playing';
@@ -3177,7 +3189,18 @@ function svgIconEl(name, size){
   return span;
 }
 function addToQueue(kind, pad){
-  if (!pad.buffer) return;
+  if (!pad.buffer){
+    // Nothing decoded yet — most likely a full song that was too large to
+    // keep in local storage across a reload, so it needs re-uploading
+    // before it can play. Prompt for the file and queue it automatically
+    // once it's loaded, rather than silently doing nothing.
+    openFilePicker(pad, function(){
+      scheduleMediaPadSave(kind, pad);
+      renderMediaListUI(kind);
+      addToQueue(kind, pad);
+    });
+    return;
+  }
   const q = mediaQueue[kind];
   q.push(pad.id);
   renderQueuePanel(kind);
@@ -3543,6 +3566,8 @@ document.getElementById('main-nav').addEventListener('click', function(e){
   });
   document.getElementById('multiview-btn').classList.remove('active');
   exitMultiview();
+  updateNowPlayingBar('loop');
+  updateNowPlayingBar('music');
 });
 document.getElementById('multiview-btn').addEventListener('click', function(){
   document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active'); });
@@ -3551,6 +3576,8 @@ document.getElementById('multiview-btn').addEventListener('click', function(){
   });
   this.classList.add('active');
   enterMultiview();
+  updateNowPlayingBar('loop');
+  updateNowPlayingBar('music');
 });
 
 
