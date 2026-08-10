@@ -5452,12 +5452,18 @@ function attemptEnter(){
   // the same audio output device at the same moment.
   if (!ctx) initAudio();
   const restorePromise = restoreAllState().catch(function(){});
-  // Start fetching every Sound Pad's audio now, in the background, so by the
-  // time the person reaches the Sound Pads screen a tap is just instant
-  // play/stop — not "wait for it to load then tap again". Doesn't block
-  // entering the app; it keeps loading (and the UI keeps updating) even
-  // after the app screen is already showing.
-  restorePromise.then(function(){ preloadGithubSoundPads(); });
+  // Start fetching every Sound Pad's audio right after restore (restore has
+  // to go first so pads already cached from a prior session — the "wav
+  // files" — aren't redundantly re-fetched from GitHub) and hold app entry
+  // on it, same as restorePromise. The intro video/animation plays during
+  // this wait, so in the common case it finishes invisibly in the
+  // background; on a slow connection the intro simply stays up a little
+  // longer instead of dropping the person into the Sound Pads screen with
+  // pads still loading. Either way, by the time the studio appears every
+  // pad is a ready instant play/stop, not "wait for it to load then tap
+  // again".
+  const preloadPromise = restorePromise.then(function(){ return preloadGithubSoundPads(); }).catch(function(){});
+  const readyPromise = Promise.all([restorePromise, preloadPromise]);
   playIntroSequence(function(){
     armAudioForPlayback();
     buildMixUI();
@@ -5469,7 +5475,7 @@ function attemptEnter(){
     document.getElementById('app').classList.add('show');
     document.getElementById('app').classList.add('has-now-playing');
     document.getElementById('welcome-name').textContent = 'Account: ' + name;
-  }, restorePromise);
+  }, readyPromise);
 }
 
 /* ============================================================
