@@ -59,16 +59,6 @@ button:disabled{ opacity:0.35; pointer-events:none; }
   *{ animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
 }
 
-/* ============================= LOADING SCREEN (plain) ============================= */
-#loading-screen{
-  position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
-  background:#000; transition:opacity 0.5s ease, visibility 0.5s;
-}
-#loading-screen.hide{ opacity:0; visibility:hidden; pointer-events:none; }
-.loading-bar-track{ width:min(320px,80vw); height:4px; border-radius:3px; background:#1a1a1a; overflow:hidden; }
-.loading-bar-fill{ height:100%; width:0%; border-radius:3px; background:var(--grad-accent); box-shadow:0 0 10px rgba(255,39,67,0.55); transition:width 0.18s ease-out; }
-.loading-msg{ font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--text-muted); }
-
 /* ============================= PASSWORD GATE (pure black) ============================= */
 .brand-mark{
   font-family:var(--font-display); font-weight:700; font-size:clamp(26px,6vw,48px); letter-spacing:0.06em; text-transform:uppercase;
@@ -83,7 +73,6 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 #password-screen.hide{ opacity:0; visibility:hidden; pointer-events:none; }
 .pw-card{ width:min(380px,88vw); text-align:center; transition:opacity 0.32s ease, transform 0.32s ease; }
 .pw-card.leaving{ opacity:0; transform:scale(0.97); pointer-events:none; }
-.pw-card.pre-enter{ opacity:0; transform:scale(0.97); }
 .pw-title{ font-family:var(--font-display); font-weight:700; font-size:clamp(22px,5vw,30px); letter-spacing:0.05em; text-transform:uppercase; color:#fff; }
 .pw-sub{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.3em; color:var(--text-dim); margin-top:8px; text-transform:uppercase; }
 .pw-divider{ height:1px; background:var(--border); margin:26px 0 22px; }
@@ -601,15 +590,9 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 </head>
 <body data-light-style="flash">
 
-<!-- ============================= LOADING SCREEN ============================= -->
-<div id="loading-screen">
-  <div class="loading-bar-track"><div class="loading-bar-fill" id="loading-bar-fill"></div></div>
-  <div class="loading-msg" id="loading-msg">Preparing web…</div>
-</div>
-
 <!-- ============================= PASSWORD GATE ============================= -->
-<div id="password-screen">
-  <div class="pw-card pre-enter">
+<div id="password-screen" class="show">
+  <div class="pw-card">
     <div class="pw-title">Worship Essentials</div>
     <div class="pw-sub">Enter Password To Continue</div>
     <div class="pw-divider"></div>
@@ -632,7 +615,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 
 <!-- ============================= BRAND INTRO ============================= -->
 <div id="intro-screen">
-  <video id="intro-video" src="WORSHIP%20ESSENTIAL.mp4" playsinline disablePictureInPicture disableRemotePlayback controlsList="nodownload noremoteplayback noplaybackrate nofullscreen"></video>
+  <video id="intro-video" src="WORSHIP%20ESSENTIAL.mp4" playsinline></video>
   <div id="intro-fallback">
     <div class="brand-mark">Worship Essentials</div>
     <div class="intro-tagline">Sound Pads · Soundboard · Loops · Mix</div>
@@ -3097,13 +3080,28 @@ function buildNowPlayingBar(kind){
   bar.appendChild(el('div', { class: 'np-top-row' }, [title, el('div', { class: 'np-transport' }, [prevBtn, playPauseBtn, nextBtn, stopBtn])]));
   bar.appendChild(el('div', { class: 'np-scrub-row' }, [elapsedEl, scrubber, totalEl]));
   bar._title = title; bar._playPauseBtn = playPauseBtn; bar._elapsedEl = elapsedEl; bar._totalEl = totalEl; bar._scrubber = scrubber; bar._scrubbing = false;
+  bar._prevBtn = prevBtn; bar._nextBtn = nextBtn; bar._stopBtn = stopBtn;
+  // Show the bar right away, in its idle state — it now stays visible at
+  // all times instead of only appearing once something is playing.
+  updateNowPlayingBar(kind);
 }
 function updateNowPlayingBar(kind){
   const bar = document.getElementById(kind + '-now-playing');
   if (!bar || !bar._title) return;
-  const pad = findPlayingMediaPad(kind);
-  if (!pad){ bar.classList.remove('show'); return; }
+  // Always visible now — the bar stays on screen even with nothing
+  // playing, so people always have a stable spot for transport controls.
   bar.classList.add('show');
+  const pad = findPlayingMediaPad(kind);
+  const controls = [bar._playPauseBtn, bar._prevBtn, bar._nextBtn, bar._stopBtn, bar._scrubber];
+  if (!pad){
+    bar._title.textContent = 'Nothing playing';
+    bar._elapsedEl.textContent = '0:00';
+    bar._totalEl.textContent = '0:00';
+    bar._scrubber.value = '0';
+    controls.forEach(function(c){ if (c) c.disabled = true; });
+    return;
+  }
+  controls.forEach(function(c){ if (c) c.disabled = false; });
   bar._title.textContent = pad.name || 'Untitled';
   bar._totalEl.textContent = fmtTimeShort(pad.playTotalDuration || 0);
 }
@@ -3111,8 +3109,8 @@ function updateNowPlayingProgress(kind){
   const bar = document.getElementById(kind + '-now-playing');
   if (!bar || !bar._scrubber || !ctx) return;
   const pad = findPlayingMediaPad(kind);
-  if (!pad){ if (bar.classList.contains('show')) bar.classList.remove('show'); return; }
-  if (!bar.classList.contains('show')) updateNowPlayingBar(kind);
+  if (!pad){ updateNowPlayingBar(kind); return; }
+  if (bar._scrubber.disabled) updateNowPlayingBar(kind);
   if (bar._scrubbing) return;
   const total = pad.playTotalDuration || 0.001;
   const elapsed = ctx.currentTime - (pad.playStartTime || ctx.currentTime);
@@ -3244,12 +3242,21 @@ function playQueueFrom(kind, index){
   queueIndex[kind] = index;
   const tcfg = queueTransition[kind];
   const fadeSecs = tcfg.type === 'fade' ? Math.max(0.1, tcfg.duration) : 0;
-  // Cut mode: kill whatever else is playing right away, like before.
-  // Fade mode: leave the outgoing track alone — it already has its own
-  // fade-out ramp scheduled (below, via fadeOutOverride from the PREVIOUS
-  // call) and will clean itself up via onended once that ramp finishes.
-  // Stopping it here would cut it instantly and defeat the crossfade.
-  if (fadeSecs <= 0) stopAllOtherMediaPads(kind, pad);
+  // Always deal with whatever else is currently playing right now, rather
+  // than assuming it will already be winding itself down. That assumption
+  // only held for *automatic* advancement (reaching the end of a track),
+  // where the previous call had scheduled its own fade-out timed to its
+  // natural duration. A manual jump (skip/previous button, or clicking
+  // "Play Queue" on a different track) happens at an arbitrary moment, so
+  // without this the old track would just keep playing underneath the new
+  // one. Cut mode: stop it instantly. Fade mode: fade it out over the same
+  // duration as the new track's fade-in, so it still sounds like a crossfade.
+  state[cfg.arrayKey].forEach(function(p){
+    if (p !== pad && p.isPlaying){
+      if (fadeSecs > 0) fadeOutAndStopEditablePad(p, fadeSecs);
+      else stopEditablePad(p);
+    }
+  });
   const totalDur = triggerEditablePad(pad, cfg.busKey, false, {
     fadeOutOverride: fadeSecs,
     onEnd: function(){ if (queuePlaying[kind] && queueIndex[kind] === index) playQueueFrom(kind, index + 1); }
@@ -3317,11 +3324,7 @@ function buildMediaRowEl(pad, kind){
   if (pad.isPlaying) classes.push('playing');
   if (pad.loading) classes.push('loading');
 
-  const nameInput = el('input', {
-    class: 'loop-name', type: 'text', value: pad.name,
-    onClick: function(e){ e.stopPropagation(); },
-    onChange: function(e){ pad.name = e.target.value || pad.name; scheduleMediaPadSave(kind, pad); }
-  });
+  const nameLabel = el('div', { class: 'loop-name', text: pad.name });
 
   const loopToggle = el('button', {
     class: 'loop-icon-btn' + (pad.loopEnabled ? ' on' : ''), html: svgIcon('loop', 13), title: 'Repeat',
@@ -3367,9 +3370,9 @@ function buildMediaRowEl(pad, kind){
     updateNowPlayingBar(kind);
   }, oncontextmenu: function(e){ e.preventDefault(); addToQueue(kind, pad); } }, [
     el('div', { class: 'loop-reel' }),
-    el('div', { class: 'loop-info' }, [
-      nameInput,
-      el('div', { class: 'loop-file', text: pad.buffer ? pad.fileName + (pad.isPlaying ? ' · playing' : '') : (pad.fileName ? '\u26A0 Re-upload "' + pad.fileName + '"' : 'No file loaded — tap to upload') })
+    el('div', { class: 'loop-info' }, pad.buffer ? [nameLabel] : [
+      nameLabel,
+      el('div', { class: 'loop-file', text: pad.fileName ? '\u26A0 Re-upload "' + pad.fileName + '"' : 'No file loaded — tap to upload' })
     ]),
     queueAddBtn,
     el('div', { class: 'loop-controls' }, [loopToggle, editBtn, uploadBtn, removeBtn])
@@ -5339,50 +5342,6 @@ document.getElementById('preset-delete-btn').addEventListener('click', function(
 
 
 /* ============================================================
-   LOADING SCREEN — plain bar + rotating message, no logo/animation
-============================================================ */
-function startLoadingSequence(){
-  const bar = document.getElementById('loading-bar-fill');
-  const msgEl = document.getElementById('loading-msg');
-  const messages = ['Preparing web…', 'Preparing sound pads…', 'Preparing soundboard…', 'Preparing loops…', 'Preparing music…', 'Preparing mix…', 'Almost ready…'];
-  let msgIdx = 0;
-  msgEl.textContent = messages[0];
-  const msgInterval = setInterval(function(){ msgIdx = (msgIdx + 1) % messages.length; msgEl.textContent = messages[msgIdx]; }, 500);
-  let p = 0;
-  const interval = setInterval(function(){
-    p += Math.random() * 9 + 4;
-    if (p >= 100) p = 100;
-    bar.style.width = p + '%';
-    if (p >= 100){
-      clearInterval(interval); clearInterval(msgInterval);
-      setTimeout(function(){
-        document.getElementById('loading-screen').classList.add('hide');
-        // Snap the password screen to fully visible INSTANTLY (its background
-        // is solid black, same as the loading screen behind it, so this is
-        // an imperceptible black-to-black cut) rather than cross-fading the
-        // whole screen's opacity — that used to fade the red "Enter Studio"
-        // button/gradient in as one translucent block along with everything
-        // else, which read as a reddish gradient materializing out of black.
-        // The card itself starts hidden (see .pw-card.pre-enter) and only
-        // it fades in afterward, against a background that never moves —
-        // a clean local fade-in instead of a full-screen color cross-fade.
-        const pwScreen = document.getElementById('password-screen');
-        pwScreen.style.transition = 'none';
-        pwScreen.classList.add('show');
-        void pwScreen.offsetWidth;
-        pwScreen.style.transition = '';
-        const pwCard = pwScreen.querySelector('.pw-card');
-        if (pwCard){
-          requestAnimationFrame(function(){
-            requestAnimationFrame(function(){ pwCard.classList.remove('pre-enter'); });
-          });
-        }
-      }, 300);
-    }
-  }, 220);
-}
-
-/* ============================================================
    PASSWORD GATE
 ============================================================ */
 const STUDIO_PASSWORD = '1';
@@ -5454,6 +5413,7 @@ function attemptEnter(){
     initQueuePanel('music');
     document.getElementById('intro-screen').classList.add('hide');
     document.getElementById('app').classList.add('show');
+    document.getElementById('app').classList.add('has-now-playing');
     document.getElementById('welcome-name').textContent = 'Account: ' + name;
   }, restorePromise);
 }
@@ -5466,7 +5426,7 @@ function playIntroSequence(onDone, waitPromise){
   introScreen.classList.add('show');
   const video = document.getElementById('intro-video');
   const fallback = document.getElementById('intro-fallback');
-  let finished = false, videoWorked = false, noVideoFrames = false, committedToFallback = false;
+  let finished = false, videoWorked = false, noVideoFrames = false;
 
   function finish(){
     if (finished) return;
@@ -5486,9 +5446,6 @@ function playIntroSequence(onDone, waitPromise){
 
   function showFallback(){
     if (videoWorked) return;
-    // Once we've committed to the fallback, don't reverse that decision
-    // later — see the p.then() success handler below for why.
-    committedToFallback = true;
     video.style.display = 'none';
     revealFallbackVisual();
     setTimeout(finish, 3600);
@@ -5523,16 +5480,6 @@ function playIntroSequence(onDone, waitPromise){
     if (p && typeof p.then === 'function'){
       p.then(function(){
         videoWorked = true;
-        // On a slow connection, video.play()'s promise can resolve well
-        // after the 6s safety-net below already gave up and switched to
-        // the text fallback. If we switched the display back to the video
-        // at that point, the person would see the intro flash from text
-        // back to video mid-reveal — "it stopped, then it played". Once
-        // we've committed to the fallback we stick with it: the video
-        // keeps playing (and its audio, if any) quietly underneath, same
-        // as the existing no-decodable-frames case below, and the
-        // fallback's own timer still decides when the intro ends.
-        if (committedToFallback) return;
         if (!noVideoFrames){
           video.style.display = 'block';
           fallback.style.display = 'none';
@@ -5565,7 +5512,6 @@ renderLoopsUI();
 renderMusicUI();
 initAllMultiviewSplitters();
 startMiniEqAnimationLoop();
-startLoadingSequence();
 
 window.addEventListener('resize', function(){
   if (currentEditingPad && currentEditingPad.buffer && document.getElementById('pad-editor-modal').classList.contains('show')){
