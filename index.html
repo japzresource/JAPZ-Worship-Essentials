@@ -7,6 +7,12 @@
 <link rel="icon" href="japzlogo.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Sound Pad audio is fetched from GitHub's LFS media host right after
+     login (see preloadGithubSoundPads). Opening the connection (DNS + TLS)
+     to it now, before that first fetch call even happens, shaves that
+     handshake off the very first pad's load time. -->
+<link rel="preconnect" href="https://media.githubusercontent.com" crossorigin>
+<link rel="dns-prefetch" href="https://media.githubusercontent.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 /* ============================= RESET & TOKENS ============================= */
@@ -1642,7 +1648,7 @@ function wait(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
 function fetchAndDecodeWithRetry(url, attempts){
   attempts = attempts || 3;
   function attempt(n){
-    return fetch(url, { cache: 'force-cache' }).then(function(r){
+    return fetch(url, { cache: 'force-cache', priority: 'high' }).then(function(r){
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.arrayBuffer();
     }).then(function(raw){
@@ -5452,18 +5458,14 @@ function attemptEnter(){
   // the same audio output device at the same moment.
   if (!ctx) initAudio();
   const restorePromise = restoreAllState().catch(function(){});
-  // Start fetching every Sound Pad's audio right after restore (restore has
-  // to go first so pads already cached from a prior session — the "wav
-  // files" — aren't redundantly re-fetched from GitHub) and hold app entry
-  // on it, same as restorePromise. The intro video/animation plays during
-  // this wait, so in the common case it finishes invisibly in the
-  // background; on a slow connection the intro simply stays up a little
-  // longer instead of dropping the person into the Sound Pads screen with
-  // pads still loading. Either way, by the time the studio appears every
-  // pad is a ready instant play/stop, not "wait for it to load then tap
-  // again".
-  const preloadPromise = restorePromise.then(function(){ return preloadGithubSoundPads(); }).catch(function(){});
-  const readyPromise = Promise.all([restorePromise, preloadPromise]);
+  // Start fetching every Sound Pad's audio now, in the background, so by the
+  // time the person reaches the Sound Pads screen a tap is just instant
+  // play/stop — not "wait for it to load then tap again". This never blocks
+  // entering the app: restorePromise (below) is the only thing the intro
+  // waits on, so a slow pad fetch can't leave the person stuck on the intro
+  // screen — it just keeps loading (and the UI keeps updating) in the
+  // background even after the app screen is already showing.
+  restorePromise.then(function(){ preloadGithubSoundPads(); });
   playIntroSequence(function(){
     armAudioForPlayback();
     buildMixUI();
@@ -5475,7 +5477,7 @@ function attemptEnter(){
     document.getElementById('app').classList.add('show');
     document.getElementById('app').classList.add('has-now-playing');
     document.getElementById('welcome-name').textContent = 'Account: ' + name;
-  }, readyPromise);
+  }, restorePromise);
 }
 
 /* ============================================================
