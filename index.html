@@ -1574,18 +1574,18 @@ const GITHUB_PADS_API_URL = 'https://api.github.com/repos/' + GITHUB_REPO_OWNER 
 // entries (e.g. if new pads get uploaded later), but nothing depends on it —
 // pressing "A" plays "[A] - Sound Walls.wav" from the moment the app opens.
 const GITHUB_PAD_FILENAMES = {
-  'A':  'A Pad.mp3',
-  'A#': 'A# Pad.mp3',
-  'B':  'B Pad.mp3',
-  'C':  'C Pad.mp3',
-  'C#': 'C# Pad.mp3',
-  'D':  'D Pad.mp3',
-  'D#': 'D# Pad.mp3',
-  'E':  'E Pad.mp3',
-  'F':  'F Pad.mp3',
-  'F#': 'F# Pad.mp3',
-  'G':  'G Pad.mp3',
-  'G#': 'G# Pad.mp3'
+  'A':  '[A] - Sound Walls.mp3',
+  'A#': '[Bb] - Sound Walls.mp3',
+  'B':  '[B] - Sound Walls.mp3',
+  'C':  '[C] - Sound Walls.mp3',
+  'C#': '[C#] - Sound Walls.mp3',
+  'D':  '[D] - Sound Walls.mp3',
+  'D#': '[Eb] - Sound Walls.mp3',
+  'E':  '[E] - Sound Walls.mp3',
+  'F':  '[F] - Sound Walls.mp3',
+  'F#': '[F#] - Sound Walls.mp3',
+  'G':  '[G] - Sound Walls.mp3',
+  'G#': '[Ab] - Sound Walls.mp3'
 };
 let githubPadUrlMap = {}; // normalized key id ('A', 'A#', ...) -> { url, fileName }
 let githubPadManifestLoaded = false;
@@ -1603,12 +1603,9 @@ function normalizePadKeyToken(raw){
   return t;
 }
 function buildLfsMediaUrl(path){
-  // Git-LFS-tracked files return only a tiny text "pointer" (oid + size) from
-  // raw.githubusercontent.com and from the Contents API's download_url field.
-  // media.githubusercontent.com is GitHub's LFS-resolving endpoint — it's what
-  // actually returns the real audio bytes for a public LFS object, no auth needed.
+  // MP3s are stored as normal git files (not LFS), so raw.githubusercontent.com serves them directly.
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
-  return 'https://media.githubusercontent.com/media/' + GITHUB_REPO_OWNER + '/' + GITHUB_REPO_NAME + '/' + GITHUB_REPO_BRANCH + '/' + encodedPath;
+  return 'https://raw.githubusercontent.com/' + GITHUB_REPO_OWNER + '/' + GITHUB_REPO_NAME + '/' + GITHUB_REPO_BRANCH + '/' + encodedPath;
 }
 function loadGithubPadManifest(){
   // Seed synchronously from the known filenames first, so pads are routable
