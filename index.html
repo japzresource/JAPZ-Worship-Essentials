@@ -1554,7 +1554,7 @@ function armAudioForPlayback(){
 /* ============================================================
    AUTO-ROUTED SOUND PAD LIBRARY
    The "Japz Pads" folder in the JAPZ-Worship-Essentials GitHub repo
-   holds one WAV per chromatic key, named like "[A] - Sound Walls.wav".
+   holds one WAV per chromatic key, named like "[A] - Sound Walls.mp3".
    Each pad's URL is known up front (see GITHUB_PAD_FILENAMES below),
    so tapping a pad with nothing loaded yet fetches straight from that
    URL and plays it immediately — no manual upload needed, and no
@@ -1572,7 +1572,7 @@ const GITHUB_PADS_API_URL = 'https://api.github.com/repos/' + GITHUB_REPO_OWNER 
 // every pad is routable the instant the page loads, with no network round-trip
 // required before a tap works. The API scan below still runs and can add/override
 // entries (e.g. if new pads get uploaded later), but nothing depends on it —
-// pressing "A" plays "[A] - Sound Walls.wav" from the moment the app opens.
+// pressing "A" plays "[A] - Sound Walls.mp3" from the moment the app opens.
 const GITHUB_PAD_FILENAMES = {
   'A':  '[A] - Sound Walls.mp3',
   'A#': '[Bb] - Sound Walls.mp3',
@@ -1626,7 +1626,7 @@ function loadGithubPadManifest(){
       list.forEach(function(item){
         if (!item || !item.name || item.type !== 'file') return;
         if (!/\.(wav|mp3|ogg|m4a|aif|aiff)$/i.test(item.name)) return;
-        const m = item.name.match(/^\s*\[([^\]]+)\]/); // pulls "A" out of "[A] - Sound Walls.wav"
+        const m = item.name.match(/^\s*\[([^\]]+)\]/); // pulls "A" out of "[A] - Sound Walls.mp3"
         if (!m) return;
         const key = normalizePadKeyToken(m[1]);
         if (!key) return;
