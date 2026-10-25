@@ -590,7 +590,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .multiview-panel-body .fader-track{ height:88px; }
 .multiview-panel-body .output-select-wrap{ display:none; }
 
-.sp2-kb{--u:54px;display:flex;flex-direction:column;gap:4px;overflow-x:auto;padding:10px;background:#0a0a0c;border:1px solid var(--border-strong);border-radius:12px}
+.sp2-kb{--u:var(--sp2u,54px);display:flex;flex-direction:column;gap:4px;overflow:hidden;padding:10px;background:#0a0a0c;border:1px solid var(--border-strong);border-radius:12px}
 .sp2-row{display:flex;gap:4px}
 .sp2-key,.sp2-gap{flex:0 0 calc(var(--w,1)*var(--u) + (var(--w,1) - 1)*4px)}
 .sp2-key{position:relative;height:var(--u);border-radius:6px;background:#26262b;border:1px solid #3a3a42;color:#d8d6dc;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:6px;font-family:var(--font-display);font-weight:700;font-size:13px;cursor:pointer;overflow:hidden;user-select:none;transition:box-shadow .1s,filter .1s}
@@ -619,21 +619,21 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .sp2-f label{display:block;font-family:var(--font-mono);font-size:9px;color:var(--text-dim);margin-bottom:4px}
 .sp2-sel,.sp2-num{padding:5px;border-radius:5px;background:var(--panel-2);border:1px solid var(--border-strong);color:var(--text);font-family:var(--font-mono);font-size:11px}
 .sp2-num{width:58px}
-.multiview-panel-body .sp2-kb{--u:28px}
 .multiview-panel-body .sp2-key small{display:none}
 .sp2-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:8px 10px;background:var(--panel);border:1px solid var(--border-strong);border-radius:10px}
 .sp2-toolbar .knob{width:52px}
 .sp2-stopbtn{width:34px;height:34px;border-radius:50%;background:#7a0f1f;border:3px solid #d81f2e;padding:0;display:flex;align-items:center;justify-content:center}
 .sp2-stopbtn span{width:12px;height:12px;border-radius:2px;background:#fff}
 .sp2-chan{margin-left:auto;font-family:var(--font-mono);font-size:11px;padding:6px 12px;background:#0a0a0c;border:1px solid var(--border-strong);border-radius:6px;color:var(--text-muted)}
-.sp2-body{display:flex;gap:10px;align-items:flex-start;overflow-x:auto}
+.sp2-body{display:flex;gap:10px;align-items:flex-start;overflow:hidden;width:100%}
 .sp2-body .sp2-kb{flex:0 0 auto}
-.sp2-side{--u:46px}
+.sp2-side{--u:var(--sp2u,54px)}
+.sp2-body.tiny .sp2-key small{display:none}
+.sp2-body.tiny .sp2-key{font-size:10px;padding-top:4px}
 .sp2-log{margin:10px 0 0;max-height:110px;overflow:auto;background:#0a0a0c;border:1px solid var(--border-strong);border-radius:8px;padding:8px;font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted)}
 .sp2-meta{white-space:pre-line}
 .sp2-wavebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
 .sp2-offs{flex:1;font-family:var(--font-mono);font-size:10.5px;color:var(--text-muted);white-space:pre}
-.multiview-panel-body .sp2-side{display:none}
 .sp2-book{margin-top:14px;background:var(--panel);border:1px solid var(--border-strong);border-radius:10px;padding:10px 12px}
 .sp2-bookhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .sp2-booksearch{flex:1;min-width:200px;padding:8px 10px;border-radius:7px;background:var(--panel-2);border:1px solid var(--border-strong);color:var(--text);font-size:12px}
@@ -3659,7 +3659,7 @@ document.getElementById('main-nav').addEventListener('click', function(e){
   });
   document.getElementById('multiview-btn').classList.remove('active');
   exitMultiview();
-  if(tab==='soundboard'){sp2RenderBook();sp2CloudRefresh();}
+  if(tab==='soundboard'){sp2RenderBook();sp2CloudRefresh();sp2Fit();}
   updateNowPlayingBar('loop');
   updateNowPlayingBar('music');
 });
@@ -5684,7 +5684,7 @@ const SP2_ROWCOL=['#c0392b','#d4a017','#e0607e','#e07a5f','#2fb5a8','#4ea8ff'];
 const SP2_SWATCH=['#e0607e','#c0392b','#e07a5f','#d4a017','#c8d442','#37e08c','#2fb5a8','#4ea8ff','#5b6bff','#b06bff','#ff4fa3','#9a98a1'];
 const SP2_CODES={}, SP2_ROW={};
 SP2_LAYOUT.forEach(function(r,ri){r.forEach(function(k){if(k.c){SP2_CODES[k.c]=k.l;SP2_ROW[k.c]=ri;}});});
-const sp2={keys:{},master:1,sel:null,view:'detailed',bg:true,midiMap:{},log:[],logOn:false,zoom:1,nav:true,num:false,listen:null,lib:[],bookTerm:'',cloud:[],cloudCache:{},status:'',armed:null,prev:null,prevId:null};
+const sp2={keys:{},master:1,sel:null,view:'detailed',bg:true,midiMap:{},log:[],logOn:false,zoom:1,nav:false,num:false,listen:null,lib:[],bookTerm:'',cloud:[],cloudCache:{},status:'',armed:null,prev:null,prevId:null};
 function sp2Key(code){
   return sp2.keys[code]||(sp2.keys[code]={name:'',fileName:'',buffer:null,raw:null,vol:100,pan:0,speed:100,pitch:0,mode:'toggle',shiftAct:'kill',loop:false,fadeIn:0,fadeOut:0.05,prio:'normal',fmode:'eq',proc:100,stopStyle:'normal',distAmt:50,ringFreq:150,verbSize:'hall',verbGain:100,paused:[],cloudName:'',low:0,mid:0,high:0,cutoff:1200,reso:1,dist:0,ring:0,verb:0,ts:0,te:0,color:SP2_ROWCOL[SP2_ROW[code]||0],voices:[],el:null});
 }
@@ -6014,6 +6014,15 @@ function sp2Midi(m){
   const c=sp2.midiMap[n]; if(!c)return; const k=sp2.keys[c];
   if(on)sp2Play(c); else if(off&&k&&k.mode==='hold')sp2Stop(k);
 }
+function sp2Fit(){
+  const body=document.querySelector('.sp2-body'); if(!body)return;
+  const W=body.clientWidth; if(!W)return;
+  const n=sp2.nav?1:0, m=sp2.num?1:0;
+  const units=15+3*n+4*m, fixed=82+32*n+36*m+10*(n+m);
+  const u=clamp(Math.floor((W-fixed)/units),22,64);
+  body.style.setProperty('--sp2u',u+'px'); body.classList.toggle('tiny',u<40);
+}
+window.addEventListener('resize',sp2Fit);
 function renderSoundplant(){
   const root=document.getElementById('sp2-root'); if(!root)return;
   root.innerHTML=''; sp2MidiInit();
@@ -6040,6 +6049,7 @@ function renderSoundplant(){
   if(sp2.nav)body.appendChild(sp2Rows(SP2_NAV,el('div',{class:'sp2-kb sp2-side'})));
   if(sp2.num)body.appendChild(sp2Rows(SP2_NUM,el('div',{class:'sp2-kb sp2-side'})));
   root.appendChild(body);
+  sp2Fit(); requestAnimationFrame(sp2Fit); if(window.ResizeObserver)new ResizeObserver(sp2Fit).observe(body);
   if(sp2.logOn)root.appendChild(el('pre',{class:'sp2-log',id:'sp2-log',text:sp2.log.join('\n')}));
   root.appendChild(el('div',{id:'sp2-panel'}));
   root.appendChild(el('div',{id:'sp2-book',class:'sp2-book'}));
@@ -6137,6 +6147,8 @@ document.addEventListener('keydown',function(e){
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.ctrlKey||e.metaKey||e.altKey)return;
   const tab=getActiveTab();
   if(!sp2.bg&&tab!=='soundboard'&&tab!=='multiview')return;
+  if(/^(Numpad|NumLock)/.test(e.code)&&!sp2.num){sp2.num=true;renderSoundplant();}
+  if(/^(Insert|Home|End|PageUp|PageDown|Delete)$/.test(e.code)&&!sp2.nav){sp2.nav=true;renderSoundplant();}
   if(e.code==='Escape'){sp2StopAll(0.04);return;}
   if(e.code==='Backspace'){e.preventDefault();sp2StopAll(2);return;}
   if(e.repeat||!SP2_CODES[e.code])return;
