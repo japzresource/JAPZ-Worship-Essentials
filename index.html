@@ -2402,6 +2402,7 @@ const KS_MINOR = [6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
 function rotateProfile(profile, root){
   const out = new Array(12);
   for (let i = 0; i < 12; i++) out[(i + root) % 12] = profile[i];
+  sp2.cloud.forEach(function(c){out.push({id:'cloud:'+c.name,name:c.label,fileName:c.label,buffer:null,raw:null,tag:'Cloud',ts:0,te:0,cloud:c.name,size:c.size});});
   return out;
 }
 function correlate(a, b){
@@ -3658,7 +3659,7 @@ document.getElementById('main-nav').addEventListener('click', function(e){
   });
   document.getElementById('multiview-btn').classList.remove('active');
   exitMultiview();
-  if(tab==='soundboard')sp2RenderBook();
+  if(tab==='soundboard'){sp2RenderBook();sp2CloudRefresh();}
   updateNowPlayingBar('loop');
   updateNowPlayingBar('music');
 });
@@ -5683,9 +5684,9 @@ const SP2_ROWCOL=['#c0392b','#d4a017','#e0607e','#e07a5f','#2fb5a8','#4ea8ff'];
 const SP2_SWATCH=['#e0607e','#c0392b','#e07a5f','#d4a017','#c8d442','#37e08c','#2fb5a8','#4ea8ff','#5b6bff','#b06bff','#ff4fa3','#9a98a1'];
 const SP2_CODES={}, SP2_ROW={};
 SP2_LAYOUT.forEach(function(r,ri){r.forEach(function(k){if(k.c){SP2_CODES[k.c]=k.l;SP2_ROW[k.c]=ri;}});});
-const sp2={keys:{},master:1,sel:null,view:'detailed',bg:true,midiMap:{},log:[],logOn:false,zoom:1,nav:true,num:false,listen:null,lib:[],bookTerm:'',armed:null,prev:null,prevId:null};
+const sp2={keys:{},master:1,sel:null,view:'detailed',bg:true,midiMap:{},log:[],logOn:false,zoom:1,nav:true,num:false,listen:null,lib:[],bookTerm:'',cloud:[],cloudCache:{},status:'',armed:null,prev:null,prevId:null};
 function sp2Key(code){
-  return sp2.keys[code]||(sp2.keys[code]={name:'',fileName:'',buffer:null,raw:null,vol:100,pan:0,speed:100,pitch:0,mode:'toggle',shiftAct:'kill',loop:false,fadeIn:0,fadeOut:0.05,prio:'normal',fmode:'eq',proc:100,stopStyle:'normal',distAmt:50,ringFreq:150,verbSize:'hall',verbGain:100,paused:[],low:0,mid:0,high:0,cutoff:1200,reso:1,dist:0,ring:0,verb:0,ts:0,te:0,color:SP2_ROWCOL[SP2_ROW[code]||0],voices:[],el:null});
+  return sp2.keys[code]||(sp2.keys[code]={name:'',fileName:'',buffer:null,raw:null,vol:100,pan:0,speed:100,pitch:0,mode:'toggle',shiftAct:'kill',loop:false,fadeIn:0,fadeOut:0.05,prio:'normal',fmode:'eq',proc:100,stopStyle:'normal',distAmt:50,ringFreq:150,verbSize:'hall',verbGain:100,paused:[],cloudName:'',low:0,mid:0,high:0,cutoff:1200,reso:1,dist:0,ring:0,verb:0,ts:0,te:0,color:SP2_ROWCOL[SP2_ROW[code]||0],voices:[],el:null});
 }
 const SP2_NAV=[[{c:'Insert',l:'INS'},{c:'Home',l:'HOME'},{c:'PageUp',l:'PGUP'}],[{c:'Delete',l:'DEL'},{c:'End',l:'END'},{c:'PageDown',l:'PGDN'}]];
 const SP2_NUM=[[{c:'NumLock',l:'NUM'},{c:'NumpadDivide',l:'/'},{c:'NumpadMultiply',l:'*'},{c:'NumpadSubtract',l:'-'}],
@@ -5784,7 +5785,7 @@ function sp2Pick(code){
   i.addEventListener('change',function(e){if(e.target.files[0])sp2Load(code,e.target.files[0]);});
   document.body.appendChild(i);i.click();setTimeout(function(){i.remove();},1500);
 }
-const SP2_PROPS=['name','fileName','vol','pan','speed','pitch','mode','shiftAct','loop','fadeIn','fadeOut','prio','fmode','low','mid','high','cutoff','reso','dist','ring','verb','ts','te','color','proc','stopStyle','distAmt','ringFreq','verbSize','verbGain'];
+const SP2_PROPS=['name','fileName','vol','pan','speed','pitch','mode','shiftAct','loop','fadeIn','fadeOut','prio','fmode','low','mid','high','cutoff','reso','dist','ring','verb','ts','te','color','proc','stopStyle','distAmt','ringFreq','verbSize','verbGain','cloudName'];
 const sp2Save=debounce(function(){
   markSaving(); const meta={master:sp2.master,view:sp2.view,bg:sp2.bg,midiMap:sp2.midiMap,keys:{}};
   Object.keys(sp2.keys).forEach(function(c){
@@ -5794,7 +5795,7 @@ const sp2Save=debounce(function(){
   });
   storageSet('sp2-meta',meta,false);
 },600);
-function sp2Restore(){return Promise.all([sp2RestoreKeys(),sp2RestoreLib()]);}
+function sp2Restore(){return Promise.all([sp2RestoreKeys(),sp2RestoreLib()]).then(function(){sp2Hydrate();sp2CloudRefresh();});}
 function sp2RestoreKeys(){
   return storageGet('sp2-meta',false).then(function(raw){
     if(!raw)return; let m; try{m=JSON.parse(raw);}catch(e){return;}
@@ -5809,6 +5810,60 @@ function sp2RestoreKeys(){
   }).catch(function(){});
 }
 /* ===== SOUNDBOOK — searchable library; drag a song onto a key ===== */
+/* ===== CLOUD SOUNDBOOK (Supabase Storage) — fill in url + anonKey to turn on ===== */
+const SP2_CLOUD={ url:'', anonKey:'sb_publishable_bnvUK_a-NHlfmyzJYn8Lsw_tlz8PsQ2', bucket:'soundbook', allowDelete:false };
+function sp2CloudOn(){return !!(SP2_CLOUD.url&&SP2_CLOUD.anonKey);}
+function sp2CloudHeaders(x){const h={apikey:SP2_CLOUD.anonKey};if(SP2_CLOUD.anonKey.indexOf('sb_')!==0)h.Authorization='Bearer '+SP2_CLOUD.anonKey;return Object.assign(h,x||{});}
+function sp2CloudRefresh(){
+  if(!sp2CloudOn())return Promise.resolve();
+  return fetch(SP2_CLOUD.url+'/storage/v1/object/list/'+SP2_CLOUD.bucket,{method:'POST',headers:sp2CloudHeaders({'Content-Type':'application/json'}),
+    body:JSON.stringify({prefix:'',limit:1000,offset:0,sortBy:{column:'created_at',order:'desc'}})})
+  .then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(list){
+    sp2.cloud=list.filter(function(o){return o.id;}).map(function(o){return {name:o.name,label:o.name.replace(/^\d+-/,''),size:(o.metadata&&o.metadata.size)||0};});
+    sp2.status='';sp2RenderBook();
+  }).catch(function(){sp2.status='Cloud soundbook unreachable \u2014 check the URL, key and bucket policies.';sp2RenderBook();});
+}
+function sp2CloudUpload(file){
+  const path=Date.now()+'-'+file.name.replace(/[^\w.\- ]/g,'_');
+  return fetch(SP2_CLOUD.url+'/storage/v1/object/'+SP2_CLOUD.bucket+'/'+encodeURIComponent(path),{method:'POST',headers:sp2CloudHeaders({'Content-Type':file.type||'audio/mpeg'}),body:file})
+    .then(function(r){if(!r.ok)throw 0;});
+}
+function sp2CloudFetch(name){
+  if(sp2.cloudCache[name])return Promise.resolve(sp2.cloudCache[name]);
+  return fetch(SP2_CLOUD.url+'/storage/v1/object/public/'+SP2_CLOUD.bucket+'/'+encodeURIComponent(name)).then(function(r){if(!r.ok)throw 0;return r.arrayBuffer();})
+  .then(function(raw){return ctx.decodeAudioData(raw.slice(0)).then(function(b){return sp2.cloudCache[name]={buffer:b,raw:raw};});});
+}
+function sp2Resolve(it){
+  if(it.buffer)return Promise.resolve(it);
+  ensureAudio(); sp2.status='Downloading \u201C'+it.name+'\u201D\u2026'; sp2RenderBook();
+  return sp2CloudFetch(it.cloud).then(function(c){sp2.status='';sp2RenderBook();return Object.assign({},it,{buffer:c.buffer,raw:c.raw});})
+    .catch(function(){sp2.status='Could not download that song.';sp2RenderBook();return null;});
+}
+function sp2AssignFromLib(code,id){
+  const it=sp2BookItems().filter(function(x){return x.id===id;})[0]; if(!it)return;
+  sp2Resolve(it).then(function(r){
+    if(!r)return; const k=sp2Key(code); sp2Stop(k,0.02);
+    k.buffer=r.buffer;k.raw=r.raw;k.fileName=r.fileName;k.name=r.name;k.ts=r.ts;k.te=r.te;k.cloudName=r.cloud||'';
+    sp2.sel=code; sp2Save(); renderSoundplant();
+  });
+}
+function sp2Preview(it){
+  if(sp2.prev){try{sp2.prev.stop();}catch(e){}sp2.prev=null;}
+  if(sp2.prevId===it.id){sp2.prevId=null;sp2RenderBook();return;}
+  sp2.prevId=it.id;
+  sp2Resolve(it).then(function(r){
+    if(!r||sp2.prevId!==it.id)return; ensureAudio();
+    const s=ctx.createBufferSource();s.buffer=r.buffer;s.connect(state.channels.soundboard.input);
+    s.start(0,r.ts||0,r.te?Math.max(0.05,r.te-r.ts):undefined);
+    s.onended=function(){if(sp2.prev===s){sp2.prev=null;sp2.prevId=null;sp2RenderBook();}};
+    sp2.prev=s;sp2RenderBook();
+  });
+}
+function sp2Hydrate(){
+  if(!sp2CloudOn())return;
+  Object.keys(sp2.keys).forEach(function(c){const k=sp2.keys[c];
+    if(k.cloudName&&!k.buffer)sp2CloudFetch(k.cloudName).then(function(r){k.buffer=r.buffer;k.raw=r.raw;renderSoundplant();}).catch(function(){});});
+}
 function sp2BookItems(){
   const out=[];
   state.musicPads.forEach(function(p){if(p.buffer)out.push({id:'music:'+p.id,name:p.name,fileName:p.fileName,buffer:p.buffer,raw:p.rawArrayBuffer,tag:'Music',ts:p.trimStart||0,te:(p.trimEnd&&p.trimEnd<p.buffer.duration-0.01)?p.trimEnd:0});});
@@ -5816,12 +5871,6 @@ function sp2BookItems(){
   sp2.lib.forEach(function(l){out.push({id:'lib:'+l.id,name:l.name,fileName:l.fileName,buffer:l.buffer,raw:l.raw,tag:'Soundbook',ts:0,te:0});});
   Object.keys(sp2.keys).forEach(function(c){const k=sp2.keys[c];if(k.buffer)out.push({id:'key:'+c,name:k.name,fileName:k.fileName,buffer:k.buffer,raw:k.raw,tag:'Key '+SP2_CODES[c],ts:k.ts,te:k.te});});
   return out;
-}
-function sp2AssignFromLib(code,id){
-  const it=sp2BookItems().filter(function(x){return x.id===id;})[0]; if(!it)return;
-  const k=sp2Key(code); sp2Stop(k,0.02);
-  k.buffer=it.buffer;k.raw=it.raw;k.fileName=it.fileName;k.name=it.name;k.ts=it.ts;k.te=it.te;
-  sp2.sel=code; sp2Save(); renderSoundplant();
 }
 const sp2SaveLib=debounce(function(){
   storageSet('sp2-lib-meta',sp2.lib.map(function(l){return {id:l.id,name:l.name,fileName:l.fileName};}),false);
@@ -5838,15 +5887,6 @@ function sp2RestoreLib(){
     }));
   }).catch(function(){});
 }
-function sp2Preview(it){
-  if(sp2.prev){try{sp2.prev.stop();}catch(e){}sp2.prev=null;}
-  if(!ctx||sp2.prevId===it.id){sp2.prevId=null;return;}
-  ensureAudio();
-  const s=ctx.createBufferSource();s.buffer=it.buffer;s.connect(state.channels.soundboard.input);
-  s.start(0,it.ts||0,it.te?Math.max(0.05,it.te-it.ts):undefined);
-  s.onended=function(){if(sp2.prev===s){sp2.prev=null;sp2.prevId=null;sp2RenderBook();}};
-  sp2.prev=s;sp2.prevId=it.id;
-}
 function sp2RenderBook(){
   const root=document.getElementById('sp2-book'); if(!root)return; root.innerHTML='';
   const search=el('input',{type:'text',class:'sp2-booksearch',placeholder:'Search soundbook \u2014 songs from Music, Loops, your keys & uploads\u2026',value:sp2.bookTerm});
@@ -5857,7 +5897,7 @@ function sp2RenderBook(){
       if(term&&(it.name+' '+it.fileName).toLowerCase().indexOf(term)===-1)return; n++;
       const row=el('div',{class:'sp2-bookitem'+(sp2.armed===it.id?' armed':''),draggable:'true',title:'Drag onto a key \u2014 or click to select, then click a key'},[
         el('span',{class:'sp2-booktag',text:it.tag}),el('span',{class:'sp2-bookname',text:it.name||it.fileName}),
-        el('span',{class:'sp2-bookdur',text:fmtTimeShort(it.buffer.duration)})]);
+        el('span',{class:'sp2-bookdur',text:it.buffer?fmtTimeShort(it.buffer.duration):(it.size?(it.size/1048576).toFixed(1)+'MB':'')})]);
       const pv=el('button',{class:'queue-mini-btn',html:svgIcon(sp2.prevId===it.id?'stop':'play',10),title:'Preview'});
       pv.addEventListener('click',function(e){e.stopPropagation();sp2Preview(it);sp2RenderBook();});
       row.appendChild(pv);
@@ -5865,6 +5905,12 @@ function sp2RenderBook(){
         const rm=el('button',{class:'queue-mini-btn remove-btn',html:svgIcon('trash',11),title:'Remove from soundbook'});
         rm.addEventListener('click',function(e){e.stopPropagation();const id=it.id.slice(4);sp2.lib=sp2.lib.filter(function(l){return l.id!==id;});storageDelete('sp2-lib:'+id,false);sp2SaveLib();sp2RenderBook();});
         row.appendChild(rm);
+      }
+      if(it.cloud&&SP2_CLOUD.allowDelete){
+        const dl=el('button',{class:'queue-mini-btn remove-btn',html:svgIcon('trash',11),title:'Delete from cloud'});
+        dl.addEventListener('click',function(e){e.stopPropagation();if(!confirm('Delete this song for everyone?'))return;
+          fetch(SP2_CLOUD.url+'/storage/v1/object/'+SP2_CLOUD.bucket+'/'+encodeURIComponent(it.cloud),{method:'DELETE',headers:sp2CloudHeaders()}).then(sp2CloudRefresh);});
+        row.appendChild(dl);
       }
       row.addEventListener('dragstart',function(e){e.dataTransfer.setData('text/sp2-lib',it.id);e.dataTransfer.effectAllowed='copy';});
       row.addEventListener('click',function(){sp2.armed=sp2.armed===it.id?null:it.id;sp2RenderBook();});
@@ -5875,6 +5921,13 @@ function sp2RenderBook(){
   search.addEventListener('input',function(){sp2.bookTerm=search.value;fill();});
   const fin=el('input',{type:'file',accept:'audio/*',multiple:'true',style:'display:none'});
   fin.addEventListener('change',function(){
+    const files=Array.prototype.slice.call(fin.files); if(!files.length)return;
+    if(sp2CloudOn()){
+      let n=0,failed=''; sp2.status='Uploading 0/'+files.length+'\u2026'; sp2RenderBook();
+      files.reduce(function(pr,f){return pr.then(function(){return sp2CloudUpload(f).then(function(){n++;sp2.status='Uploading '+n+'/'+files.length+'\u2026';sp2RenderBook();}).catch(function(){failed='Upload failed for '+f.name+' (too large or not allowed).';});});},Promise.resolve())
+        .then(sp2CloudRefresh).then(function(){sp2.status=failed||'Uploaded \u2014 available on every device.';sp2RenderBook();});
+      fin.value=''; return;
+    }
     ensureAudio();
     Array.prototype.slice.call(fin.files).forEach(function(f){
       const r=new FileReader();
@@ -5887,6 +5940,7 @@ function sp2RenderBook(){
     el('button',{class:'toolbar-btn',text:'+ Add songs',onClick:function(){fin.click();}}),fin,
     el('button',{class:'toolbar-btn',html:svgIcon('refresh',12),title:'Refresh list',onClick:sp2RenderBook})]));
   root.appendChild(list); fill();
+  root.appendChild(el('div',{class:'settings-note',text:sp2.status||(sp2CloudOn()?'Cloud soundbook connected \u2014 songs added here are shared and available on every device.':'Cloud not set up yet \u2014 uploads only stay on this device (see SP2_CLOUD in the code).')}));
   if(sp2.armed)root.appendChild(el('div',{class:'settings-note',text:'Selected \u2014 now click a key to assign it (click the song again to cancel).'}));
 }
 function sp2Smalltext(k){return !k.buffer||sp2.view==='simple'?'':(sp2.view==='info'?k.buffer.duration.toFixed(1)+'s':k.name);}
