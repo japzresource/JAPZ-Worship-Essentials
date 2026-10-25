@@ -590,6 +590,25 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .multiview-panel-body .fader-track{ height:88px; }
 .multiview-panel-body .output-select-wrap{ display:none; }
 
+.sp2-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.sp2-kb{display:flex;flex-direction:column;gap:6px;overflow-x:auto;padding-bottom:8px}
+.sp2-row{display:flex;gap:6px}
+.sp2-key{position:relative;flex:0 0 62px;height:62px;border-radius:9px;background:var(--card);border:1px solid var(--border-strong);color:var(--text-muted);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:16px;cursor:pointer;overflow:hidden;user-select:none;transition:box-shadow .12s,border-color .12s}
+.sp2-key.space{flex-basis:360px}
+.sp2-key small{font-family:var(--font-mono);font-size:8px;color:var(--text-dim);max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp2-key.loaded{color:var(--text);border-color:var(--kc,var(--accent))}
+.sp2-key.loaded::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kc,var(--accent))}
+.sp2-key.sel{outline:2px solid #fff;outline-offset:1px}
+.sp2-key.playing{box-shadow:0 0 0 2px var(--flash-color),0 0 22px var(--flash-color);background:linear-gradient(160deg,rgba(179,18,31,.3),var(--card))}
+.sp2-key.dragover{border-color:var(--green);background:rgba(55,224,140,.12)}
+.sp2-insp{margin-top:14px;background:var(--panel);border:1px solid var(--border-strong);border-radius:12px;padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.sp2-insp label{display:block;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px}
+.sp2-insp input[type=text],.sp2-insp select{width:100%;padding:8px;border-radius:7px;background:var(--panel-2);border:1px solid var(--border-strong);color:var(--text);font-size:12px}
+.sp2-insp span.v{font-family:var(--font-mono);font-size:11px;color:var(--accent-glow)}
+.multiview-panel-body .sp2-key{flex-basis:40px;height:40px;font-size:12px}
+.multiview-panel-body .sp2-key.space{flex-basis:200px}
+.multiview-panel-body .sp2-key small{display:none}
+
 /* ============================= RESPONSIVE ============================= */
 @media (max-width:640px){
   #db-grid{ grid-template-columns:repeat(2,1fr); max-width:340px; }
@@ -655,7 +674,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 
   <nav class="main-nav" id="main-nav">
     <button class="nav-tab active" data-tab="soundpads">Sound Pads</button>
-    <button class="nav-tab" data-tab="soundboard">Soundboard</button>
+    <button class="nav-tab" data-tab="soundboard">Soundplant</button>
     <button class="nav-tab" data-tab="loops">Loops</button>
     <button class="nav-tab" data-tab="music">Music</button>
     <button class="nav-tab" data-tab="mix">Mix</button>
@@ -712,9 +731,11 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
     <section class="section" id="section-soundboard">
       <div class="section-panel">
         <div class="section-heading">
-          <h2 class="section-title">Soundboard</h2>
-          <span class="section-hint">12 drum pads · pitch, EQ, compressor, fades &amp; trim per pad</span>
+          <h2 class="section-title">Soundplant</h2>
+          <span class="section-hint">Soundplant · every keyboard key is a pad</span>
         </div>
+        <div id="sp2-root"></div>
+        <div style="display:none">
         <div class="section-toolbar">
           <button class="toolbar-btn" id="edit-mode-btn"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"></path></svg> Edit Mode: Off</button>
           <select class="toolbar-select" id="preset-select"><option value="">— Live (unsaved) —</option></select>
@@ -723,6 +744,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
           <button class="toolbar-icon-btn" id="preset-delete-btn" title="Delete current preset"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"></path></svg></button>
         </div>
         <div id="db-grid"></div>
+        </div>
       </div>
     </section>
 
@@ -787,7 +809,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         <div class="mv-row mv-row-1" id="mv-row-1">
           <div class="multiview-panel" id="mv-panel-soundpads"><div class="multiview-panel-header">Sound Pads</div><div class="multiview-panel-body" id="mv-slot-soundpads"></div></div>
           <div class="mv-vsplit" id="mv-vsplit-1"></div>
-          <div class="multiview-panel" id="mv-panel-soundboard"><div class="multiview-panel-header">Soundboard</div><div class="multiview-panel-body" id="mv-slot-soundboard"></div></div>
+          <div class="multiview-panel" id="mv-panel-soundboard"><div class="multiview-panel-header">Soundplant</div><div class="multiview-panel-body" id="mv-slot-soundboard"></div></div>
           <div class="mv-vsplit" id="mv-vsplit-2"></div>
           <div class="multiview-panel" id="mv-panel-loops"><div class="multiview-panel-header">Loops</div><div class="multiview-panel-body" id="mv-slot-loops"></div></div>
         </div>
@@ -2622,6 +2644,7 @@ function refreshPlayVisual(pad){
 
 /* ---- Soundboard rendering ---- */
 function renderSoundboardUI(){
+  renderSoundplant(); return;
   const gridWrap = document.getElementById('db-grid');
   gridWrap.innerHTML = '';
   state.drumPads.forEach(function(pad){ gridWrap.appendChild(buildDrumPadEl(pad)); });
@@ -2685,6 +2708,7 @@ document.getElementById('edit-mode-btn').addEventListener('click', function(){
    modal is open capturing input, or a shortcut is being reassigned.
 ============================================================ */
 document.addEventListener('keydown', function(e){
+  return; // old drum-pad shortcuts replaced by Soundplant
   const tag = e.target && e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -3506,6 +3530,7 @@ function createKnob(opts){
    STOP ALL
 ============================================================ */
 function stopAllAudio(){
+  sp2StopAll();
   Object.keys(state.soundPads).forEach(function(catId){
     const p = state.soundPads[catId];
     if (p.isPlaying) stopSoundPad(p);
@@ -5470,7 +5495,7 @@ function attemptEnter(){
   // re-fetches them for nothing.
   const soundPadsRestoredPromise = hasStorage ? restoreSoundPads().catch(function(){}) : Promise.resolve();
   const restorePromise = hasStorage
-    ? Promise.all([restoreSettings(), soundPadsRestoredPromise, restoreDrumPads(), restoreLoopPads(), restoreMusicPads(), restoreMixSettings(), refreshPresetDropdown()]).catch(function(){})
+    ? Promise.all([restoreSettings(), soundPadsRestoredPromise, sp2Restore(), restoreDrumPads(), restoreLoopPads(), restoreMusicPads(), restoreMixSettings(), refreshPresetDropdown()]).catch(function(){})
     : Promise.resolve();
   // Start fetching every Sound Pad's audio now, in the background, so by the
   // time the person reaches the Sound Pads screen a tap is just instant
@@ -5599,6 +5624,165 @@ function playIntroSequence(onDone, waitPromise){
   // seconds (slow connection, big file), fall back instead of hanging forever.
   armStallTimer(6000);
 }
+
+/* ============================================================
+   SOUNDPLANT — every keyboard key is a pad. Buffers are pre-decoded so
+   a keypress goes straight to src.start() on the same tick (no async).
+============================================================ */
+const SP2_ROWS=(function(){
+  const L=function(s){return s.split('').map(function(c){return ['Key'+c,c];});};
+  const D=[['Backquote','`']].concat('1234567890'.split('').map(function(c){return ['Digit'+c,c];}),[['Minus','-'],['Equal','=']]);
+  return [D,L('QWERTYUIOP').concat([['BracketLeft','['],['BracketRight',']']]),
+    L('ASDFGHJKL').concat([['Semicolon',';'],['Quote',"'"]]),
+    L('ZXCVBNM').concat([['Comma',','],['Period','.'],['Slash','/']]),[['Space','SPACE']]];
+})();
+const SP2_CODES={}; SP2_ROWS.forEach(function(r){r.forEach(function(k){SP2_CODES[k[0]]=k[1];});});
+const sp2={keys:{},master:1,sel:null};
+function sp2Key(code){
+  return sp2.keys[code]||(sp2.keys[code]={name:'',fileName:'',buffer:null,raw:null,vol:1,pitch:0,pan:0,fadeIn:0,fadeOut:0.05,mode:'toggle',loop:false,color:PALETTE[Object.keys(sp2.keys).length%PALETTE.length],voices:[],el:null});
+}
+function sp2Vis(k){ if(k.el)k.el.classList.toggle('playing',k.voices.length>0); }
+function sp2Stop(k,fade){
+  if(!k||!k.voices.length||!ctx)return;
+  const f=Math.max(fade!=null?fade:k.fadeOut,0.005), t=ctx.currentTime;
+  k.voices.slice().forEach(function(v){
+    try{v.g.gain.cancelScheduledValues(t);v.g.gain.setValueAtTime(v.g.gain.value,t);v.g.gain.linearRampToValueAtTime(0,t+f);v.src.stop(t+f+0.01);}catch(e){}
+  });
+  k.voices=[]; sp2Vis(k);
+}
+function sp2StopAll(){Object.keys(sp2.keys).forEach(function(c){sp2Stop(sp2.keys[c],0.05);});}
+function sp2Play(code){
+  const k=sp2.keys[code]; if(!k||!k.buffer||!ctx)return;
+  if(ctx.state!=='running')ctx.resume();
+  if(k.mode==='toggle'&&k.voices.length){sp2Stop(k);return;}
+  if(k.mode==='exclusive')Object.keys(sp2.keys).forEach(function(c){if(c!==code)sp2Stop(sp2.keys[c],0.03);});
+  const t=ctx.currentTime, src=ctx.createBufferSource(), g=ctx.createGain(), p=ctx.createStereoPanner();
+  src.buffer=k.buffer; src.playbackRate.value=Math.pow(2,k.pitch/1200); src.loop=k.loop; p.pan.value=k.pan;
+  const lvl=Math.max(k.vol*sp2.master,0.0001);
+  if(k.fadeIn>0){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(lvl,t+k.fadeIn);}else g.gain.setValueAtTime(lvl,t);
+  src.connect(g);g.connect(p);p.connect(state.channels.soundboard.input);
+  const v={src:src,g:g}; k.voices.push(v);
+  src.onended=function(){const i=k.voices.indexOf(v);if(i!==-1)k.voices.splice(i,1);sp2Vis(k);};
+  src.start(t); sp2Vis(k);
+}
+function sp2Load(code,file){
+  ensureAudio(); const k=sp2Key(code), r=new FileReader();
+  r.onload=function(e){
+    const raw=e.target.result;
+    ctx.decodeAudioData(raw.slice(0)).then(function(b){
+      k.buffer=b;k.raw=raw;k.fileName=file.name;k.name=k.name||fileBaseName(file.name);
+      sp2Save();renderSoundplant();
+    }).catch(function(){alert('Could not read this audio file. Try MP3, WAV, OGG or M4A.');});
+  };
+  r.readAsArrayBuffer(file);
+}
+function sp2Pick(code){
+  const i=el('input',{type:'file',accept:'audio/*',style:'display:none'});
+  i.addEventListener('change',function(e){if(e.target.files[0])sp2Load(code,e.target.files[0]);});
+  document.body.appendChild(i);i.click();setTimeout(function(){i.remove();},1500);
+}
+const sp2Save=debounce(function(){
+  markSaving(); const meta={master:sp2.master,keys:{}};
+  Object.keys(sp2.keys).forEach(function(c){
+    const k=sp2.keys[c]; if(!k.fileName)return;
+    meta.keys[c]={name:k.name,fileName:k.fileName,vol:k.vol,pitch:k.pitch,pan:k.pan,fadeIn:k.fadeIn,fadeOut:k.fadeOut,mode:k.mode,loop:k.loop,color:k.color};
+    if(k.raw&&k.raw.byteLength<=MAX_STORABLE_AUDIO_BYTES)storageSet('sp2-audio:'+c,arrayBufferToBase64(k.raw),false);
+  });
+  storageSet('sp2-meta',meta,false);
+},600);
+function sp2Restore(){
+  return storageGet('sp2-meta',false).then(function(raw){
+    if(!raw)return; let m; try{m=JSON.parse(raw);}catch(e){return;}
+    sp2.master=m.master!=null?m.master:1;
+    return Promise.all(Object.keys(m.keys||{}).map(function(c){
+      const k=sp2Key(c); Object.assign(k,m.keys[c]);
+      return storageGet('sp2-audio:'+c,false).then(function(b64){
+        if(!b64)return; const ab=base64ToArrayBuffer(b64);
+        return ctx.decodeAudioData(ab.slice(0)).then(function(b){k.buffer=b;k.raw=ab;}).catch(function(){});
+      });
+    }));
+  }).catch(function(){});
+}
+function renderSoundplant(){
+  const root=document.getElementById('sp2-root'); if(!root)return;
+  root.innerHTML='';
+  const vol=el('input',{type:'range',min:'0',max:'150',value:String(Math.round(sp2.master*100)),style:'width:140px'});
+  vol.addEventListener('input',function(){sp2.master=vol.value/100;sp2Save();});
+  root.appendChild(el('div',{class:'sp2-bar'},[
+    el('button',{class:'settings-danger-btn',text:'Stop All (Esc)',onClick:sp2StopAll}),
+    el('span',{class:'section-hint',text:'Master'}),vol,
+    el('span',{class:'section-hint',text:'Press a key to play \u00B7 drop an audio file on a key to assign \u00B7 click a key to edit'})
+  ]));
+  const kb=el('div',{class:'sp2-kb'});
+  SP2_ROWS.forEach(function(row,ri){
+    const r=el('div',{class:'sp2-row',style:'margin-left:'+(ri*18)+'px'});
+    row.forEach(function(d){
+      const k=sp2Key(d[0]);
+      const cell=el('div',{class:'sp2-key'+(k.buffer?' loaded':'')+(d[0]==='Space'?' space':'')+(sp2.sel===d[0]?' sel':'')+(k.voices.length?' playing':''),style:'--kc:'+k.color},[
+        el('div',{text:d[1]}),el('small',{text:k.buffer?k.name:''})]);
+      k.el=cell;
+      cell.addEventListener('pointerdown',function(){
+        sp2.sel=d[0];
+        if(!k.buffer){sp2Pick(d[0]);}else{sp2Play(d[0]);if(k.mode==='hold')cell._held=true;}
+        kb.querySelectorAll('.sp2-key').forEach(function(x){x.classList.toggle('sel',x===cell);});
+        renderSoundplantInspector();
+      });
+      ['pointerup','pointerleave'].forEach(function(ev){cell.addEventListener(ev,function(){if(cell._held){cell._held=false;sp2Stop(k);}});});
+      cell.addEventListener('dragover',function(e){e.preventDefault();cell.classList.add('dragover');});
+      cell.addEventListener('dragleave',function(){cell.classList.remove('dragover');});
+      cell.addEventListener('drop',function(e){e.preventDefault();cell.classList.remove('dragover');
+        const f=e.dataTransfer.files[0]; if(f){sp2.sel=d[0];sp2Load(d[0],f);}});
+      r.appendChild(cell);
+    });
+    kb.appendChild(r);
+  });
+  root.appendChild(kb);
+  root.appendChild(el('div',{id:'sp2-insp-wrap'}));
+  renderSoundplantInspector();
+}
+function renderSoundplantInspector(){
+  const wrap=document.getElementById('sp2-insp-wrap'); if(!wrap)return; wrap.innerHTML='';
+  const code=sp2.sel; if(!code||!sp2.keys[code]||!sp2.keys[code].buffer)return;
+  const k=sp2.keys[code];
+  function slider(label,min,max,step,prop,fmt){
+    const v=el('span',{class:'v',text:fmt(k[prop])});
+    const i=el('input',{type:'range',min:min,max:max,step:step,value:String(k[prop])});
+    i.addEventListener('input',function(){k[prop]=Number(i.value);v.textContent=fmt(k[prop]);
+      k.voices.forEach(function(x){if(prop==='vol')x.g.gain.value=Math.max(k.vol*sp2.master,0.0001);if(prop==='pitch')x.src.playbackRate.value=Math.pow(2,k.pitch/1200);});sp2Save();});
+    return el('div',{},[el('label',{text:label}),i,v]);
+  }
+  const name=el('input',{type:'text',value:k.name}); name.addEventListener('input',function(){k.name=name.value;if(k.el){const s=k.el.querySelector('small');if(s)s.textContent=k.name;}sp2Save();});
+  const mode=el('select',{},[['toggle','Toggle (press to start/stop)'],['hold','Hold (plays while held)'],['oneshot','One-shot (overlaps)'],['exclusive','Exclusive (cuts others)']].map(function(o){
+    const op=el('option',{value:o[0],text:o[1]}); if(k.mode===o[0])op.selected=true; return op;}));
+  mode.addEventListener('change',function(){k.mode=mode.value;sp2Save();});
+  const loop=el('input',{type:'checkbox'}); loop.checked=k.loop; loop.addEventListener('change',function(){k.loop=loop.checked;sp2Save();});
+  const color=el('input',{type:'color',value:k.color}); color.addEventListener('input',function(){k.color=color.value;if(k.el)k.el.style.setProperty('--kc',color.value);sp2Save();});
+  wrap.appendChild(el('div',{class:'sp2-insp'},[
+    el('div',{},[el('label',{text:'Key '+SP2_CODES[code]+' \u00B7 name'}),name]),
+    el('div',{},[el('label',{text:'Trigger mode'}),mode]),
+    slider('Volume',0,150,1,'vol',function(v){return Math.round(v)+'%';}),
+    slider('Pitch / speed',-1200,1200,10,'pitch',function(v){return (v>0?'+':'')+v+' ct';}),
+    slider('Pan',-1,1,0.05,'pan',function(v){return v===0?'C':(v<0?'L':'R')+Math.abs(Math.round(v*100));}),
+    slider('Fade in',0,3,0.05,'fadeIn',function(v){return v.toFixed(2)+'s';}),
+    slider('Fade out',0,5,0.05,'fadeOut',function(v){return v.toFixed(2)+'s';}),
+    el('div',{},[el('label',{text:'Loop'}),loop,el('label',{text:'Color',style:'margin-top:10px'}),color]),
+    el('div',{style:'display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap'},[
+      el('button',{class:'toolbar-btn',text:'Replace',onClick:function(){sp2Pick(code);}}),
+      el('button',{class:'toolbar-btn',text:'Clear',onClick:function(){sp2Stop(k,0.02);k.buffer=null;k.raw=null;k.fileName='';k.name='';storageDelete('sp2-audio:'+code,false);sp2Save();renderSoundplant();}})
+    ])
+  ]));
+}
+document.addEventListener('keydown',function(e){
+  const t=e.target&&e.target.tagName;
+  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==='Escape'){sp2StopAll();return;}
+  if(e.repeat||!SP2_CODES[e.code])return;
+  const k=sp2.keys[e.code]; if(!k||!k.buffer)return;
+  e.preventDefault(); sp2Play(e.code);
+});
+document.addEventListener('keyup',function(e){
+  const k=sp2.keys[e.code]; if(k&&k.mode==='hold')sp2Stop(k);
+});
 
 /* ============================================================
    INIT
