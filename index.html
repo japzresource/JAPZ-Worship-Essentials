@@ -211,7 +211,7 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 .piano-current-label{ font-family:var(--font-mono); font-size:11px; color:var(--text-muted); text-align:center; margin-top:10px; }
 .piano-current-label b{ color:var(--accent-glow); }
 
-/* ============================= PAD CARDS (Sound Pads + Soundboard) ============================= */
+/* ============================= PAD CARDS (Sound Pads + Soundplant) ============================= */
 #sp-grid,#db-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:14px; }
 #db-grid{ grid-template-columns:repeat(4,1fr); max-width:660px; margin:0 auto; }
 .pad-card{
@@ -687,7 +687,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
   <video id="intro-video" src="WORSHIP%20ESSENTIAL.mp4" playsinline disablepictureinpicture disableRemotePlayback preload="auto" x-webkit-airplay="deny" controlsList="nodownload nofullscreen noremoteplayback noplaybackrate"></video>
   <div id="intro-fallback">
     <div class="brand-mark">Worship Essentials</div>
-    <div class="intro-tagline">Sound Pads · Soundboard · Loops · Mix</div>
+    <div class="intro-tagline">Sound Pads · Soundplant · Loops · Mix</div>
   </div>
 </div>
 
@@ -697,7 +697,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
     <div class="header-left">
       <div class="logo-block">
         <div class="logo-text">JAPZ<span class="accent">.</span>Worship Essentials</div>
-        <div class="logo-sub">Sound Pads · Soundboard · Loops · Mix</div>
+        <div class="logo-sub">Sound Pads · Soundplant · Loops · Mix</div>
       </div>
       <span id="welcome-name"></span>
       <span id="save-indicator"></span>
@@ -710,7 +710,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 
   <nav class="main-nav" id="main-nav">
     <button class="nav-tab active" data-tab="soundpads">Sound Pads</button>
-    <button class="nav-tab" data-tab="soundboard">Soundplant</button>
+    <button class="nav-tab" data-tab="Soundplant">Soundplant</button>
     <button class="nav-tab" data-tab="loops">Loops</button>
     <button class="nav-tab" data-tab="music">Music</button>
     <button class="nav-tab" data-tab="mix">Mix</button>
@@ -763,8 +763,8 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
       </div>
     </section>
 
-    <!-- SOUNDBOARD SECTION -->
-    <section class="section" id="section-soundboard">
+    <!-- Soundplant SECTION -->
+    <section class="section" id="section-Soundplant">
       <div class="section-panel">
         <div class="section-heading">
           <h2 class="section-title">Soundplant</h2>
@@ -789,7 +789,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
       <div class="section-panel">
         <div class="section-heading">
           <h2 class="section-title">Loops</h2>
-          <span class="section-hint">Backing tracks — loops keep playing under your pads and soundboard</span>
+          <span class="section-hint">Backing tracks — loops keep playing under your pads and Soundplant</span>
         </div>
         <div class="section-toolbar">
           <button class="toolbar-btn" id="loop-edit-mode-btn"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"></path></svg> Edit Mode: Off</button>
@@ -845,7 +845,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         <div class="mv-row mv-row-1" id="mv-row-1">
           <div class="multiview-panel" id="mv-panel-soundpads"><div class="multiview-panel-header">Sound Pads</div><div class="multiview-panel-body" id="mv-slot-soundpads"></div></div>
           <div class="mv-vsplit" id="mv-vsplit-1"></div>
-          <div class="multiview-panel" id="mv-panel-soundboard"><div class="multiview-panel-header">Soundplant</div><div class="multiview-panel-body" id="mv-slot-soundboard"></div></div>
+          <div class="multiview-panel" id="mv-panel-Soundplant"><div class="multiview-panel-header">Soundplant</div><div class="multiview-panel-body" id="mv-slot-Soundplant"></div></div>
           <div class="mv-vsplit" id="mv-vsplit-2"></div>
           <div class="multiview-panel" id="mv-panel-loops"><div class="multiview-panel-header">Loops</div><div class="multiview-panel-body" id="mv-slot-loops"></div></div>
         </div>
@@ -868,7 +868,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
   <div class="app-footer">Worship Essentials — runs entirely in your browser</div>
 </div>
 
-<!-- ============================= SHARED PAD EDITOR MODAL (Soundboard + Loops) ============================= -->
+<!-- ============================= SHARED PAD EDITOR MODAL (Soundplant + Loops) ============================= -->
 <div class="modal-overlay" id="pad-editor-modal">
   <div class="modal-panel">
     <div class="modal-header">
@@ -966,7 +966,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         <div class="swatch-row" id="light-style-row"></div>
       </div>
       <div class="settings-section">
-        <div class="settings-section-title">Keyboard Shortcuts <span style="font-weight:400; text-transform:none; letter-spacing:0;">(trigger Soundboard pads from your keyboard)</span></div>
+        <div class="settings-section-title">Keyboard Shortcuts <span style="font-weight:400; text-transform:none; letter-spacing:0;">(trigger Soundplant pads from your keyboard)</span></div>
         <div id="shortcut-list"></div>
         <div class="settings-note" id="shortcut-hint">Click a key, then press any key on your keyboard to reassign it.</div>
       </div>
@@ -1266,7 +1266,7 @@ const CHROMATIC_KEYS = [
   { id:'G',  label:'G',  sub:null },
   { id:'G#', label:'G\u266F', sub:'Ab' }
 ];
-const MIX_BUS_KEYS = ['soundpad', 'soundboard', 'loop', 'music'];
+const MIX_BUS_KEYS = ['soundpad', 'Soundplant', 'loop', 'music'];
 
 const DRUM_PAD_COUNT = 12;
 const LOOP_SLOT_COUNT = 0; // loops now start empty — tap "+ Upload" to add one
@@ -1313,7 +1313,7 @@ const settings = {
   accentGlow: '#d81f2e',
   flash: '#b3121f',
   lightStyle: 'flash',
-  audioBalance: { soundpad: false, soundboard: false, loop: false, music: false },
+  audioBalance: { soundpad: false, Soundplant: false, loop: false, music: false },
   spTransition: {
     mode: 'crossfade',   // 'crossfade' (overlap) | 'wait' (fade out fully first, then start) | 'cut' (instant)
     duration: 5,          // seconds — key-change fade length (crossfade & wait modes)
@@ -1545,7 +1545,7 @@ function initAudio(){
   masterBus.analyser.connect(ctx.destination);
 
   state.channels.soundpad = buildChannel('Sound Pads');
-  state.channels.soundboard = buildChannel('Soundboard');
+  state.channels.Soundplant = buildChannel('Soundplant');
   state.channels.loop = buildChannel('Loop');
   state.channels.music = buildChannel('Music');
 
@@ -1869,7 +1869,7 @@ function loadAudioFile(file, pad, onLoaded){
 
 function refreshAllUI(){
   renderSoundPadsUI();
-  renderSoundboardUI();
+  renderSoundplantUI();
   renderLoopsUI();
   renderMusicUI();
 }
@@ -2261,7 +2261,7 @@ function updateSoundPadVisual(pad, fadeSeconds){
 
 
 /* ============================================================
-   SOUNDBOARD (DRUM PADS) + LOOPS shared playback engine
+   Soundplant (DRUM PADS) + LOOPS shared playback engine
 ============================================================ */
 /* ============================================================
    GRANULAR PITCH / TEMPO ENGINE
@@ -2679,8 +2679,8 @@ function refreshPlayVisual(pad){
   }
 }
 
-/* ---- Soundboard rendering ---- */
-function renderSoundboardUI(){
+/* ---- Soundplant rendering ---- */
+function renderSoundplantUI(){
   renderSoundplant(); return;
   const gridWrap = document.getElementById('db-grid');
   gridWrap.innerHTML = '';
@@ -2719,7 +2719,7 @@ function buildDrumPadEl(pad){
     if (pad.loading) return;
     if (!pad.buffer){ flashEl(wrap); openFilePicker(pad, function(){ scheduleDrumPadSave(pad); }); return; }
     if (editModeOn){ flashEl(wrap); openPadEditor(pad, 'drum'); return; }
-    triggerEditablePad(pad, 'soundboard', false);
+    triggerEditablePad(pad, 'Soundplant', false);
     flashEl(wrap);
     scheduleDrumPadSave(pad);
   } }, [
@@ -2740,7 +2740,7 @@ document.getElementById('edit-mode-btn').addEventListener('click', function(){
 });
 
 /* ============================================================
-   KEYBOARD SHORTCUTS — trigger soundboard pads from the keyboard.
+   KEYBOARD SHORTCUTS — trigger Soundplant pads from the keyboard.
    Remappable in Settings. Ignored while typing in a text field, a
    modal is open capturing input, or a shortcut is being reassigned.
 ============================================================ */
@@ -2764,14 +2764,14 @@ document.addEventListener('keydown', function(e){
   // the trigger call instead of running before it — every bit of DOM or
   // storage work done ahead of triggerEditablePad is time added between
   // the key press and the first sample actually reaching the output.
-  triggerEditablePad(pad, 'soundboard', false);
+  triggerEditablePad(pad, 'Soundplant', false);
   if (pad.el) flashEl(pad.el);
   scheduleDrumPadSave(pad);
 });
 
 
 /* ============================================================
-   SHARED PAD EDITOR (Soundboard + Loops)
+   SHARED PAD EDITOR (Soundplant + Loops)
 ============================================================ */
 function openPadEditor(pad, kind){
   currentEditingPad = pad;
@@ -3037,7 +3037,7 @@ document.getElementById('de-fadeout').addEventListener('input', function(e){
 document.getElementById('de-fadeout').addEventListener('change', saveCurrentEditingPad);
 document.getElementById('de-play').addEventListener('click', function(){
   if (!currentEditingPad) return;
-  const busKey = currentEditingKind === 'loop' ? 'loop' : 'soundboard';
+  const busKey = currentEditingKind === 'loop' ? 'loop' : 'Soundplant';
   triggerEditablePad(currentEditingPad, busKey, false);
 });
 document.getElementById('de-stop').addEventListener('click', function(){
@@ -3088,7 +3088,7 @@ document.getElementById('de-close').addEventListener('click', closePadEditor);
 /* ============================================================
    MEDIA LISTS (Loops + Music share this — dynamic, starts empty,
    tap "+ Upload" to add a track; each has its own Edit Mode toggle
-   just like the Soundboard)
+   just like the Soundplant)
 ============================================================ */
 const MEDIA_KINDS = {
   loop: { arrayKey: 'loopPads', listId: 'loop-list', searchId: 'loop-search-input', editBtnId: 'loop-edit-mode-btn', queuePanelId: 'loop-queue-panel', busKey: 'loop', makePad: makeLoopPad, emptyLabel: 'No loops match your search.', addLabel: 'Upload a loop' },
@@ -3582,7 +3582,7 @@ function stopAllAudio(){
    resizable grid so every part of the app can be seen at once.
    Leaving Multiview moves them back to their normal tabs.
 ============================================================ */
-const MULTIVIEW_SLOTS = { soundpads:'section-soundpads', soundboard:'section-soundboard', loops:'section-loops', music:'section-music', mix:'section-mix' };
+const MULTIVIEW_SLOTS = { soundpads:'section-soundpads', Soundplant:'section-Soundplant', loops:'section-loops', music:'section-music', mix:'section-mix' };
 let multiviewActive = false;
 const multiviewHomes = {};
 function enterMultiview(){
@@ -3640,8 +3640,8 @@ function initMultiviewSplitter(handleId, direction, elA, elB){
   });
 }
 function initAllMultiviewSplitters(){
-  initMultiviewSplitter('mv-vsplit-1', 'row', document.getElementById('mv-panel-soundpads'), document.getElementById('mv-panel-soundboard'));
-  initMultiviewSplitter('mv-vsplit-2', 'row', document.getElementById('mv-panel-soundboard'), document.getElementById('mv-panel-loops'));
+  initMultiviewSplitter('mv-vsplit-1', 'row', document.getElementById('mv-panel-soundpads'), document.getElementById('mv-panel-Soundplant'));
+  initMultiviewSplitter('mv-vsplit-2', 'row', document.getElementById('mv-panel-Soundplant'), document.getElementById('mv-panel-loops'));
   initMultiviewSplitter('mv-vsplit-3', 'row', document.getElementById('mv-panel-music'), document.getElementById('mv-panel-mix'));
   initMultiviewSplitter('mv-hsplit-1', 'col', document.getElementById('mv-row-1'), document.getElementById('mv-row-2'));
 }
@@ -3659,7 +3659,7 @@ document.getElementById('main-nav').addEventListener('click', function(e){
   });
   document.getElementById('multiview-btn').classList.remove('active');
   exitMultiview();
-  if(tab==='soundboard'){sp2RenderBook();sp2CloudRefresh();sp2Fit();}
+  if(tab==='Soundplant'){sp2RenderBook();sp2CloudRefresh();sp2Fit();}
   updateNowPlayingBar('loop');
   updateNowPlayingBar('music');
 });
@@ -3792,7 +3792,7 @@ function renderAudioBalanceRow(){
   row.innerHTML = '';
   [
     { key: 'soundpad', label: 'Sound Pads' },
-    { key: 'soundboard', label: 'Soundboard' },
+    { key: 'Soundplant', label: 'Soundplant' },
     { key: 'loop', label: 'Loops' },
     { key: 'music', label: 'Music' }
   ].forEach(function(opt){
@@ -4581,7 +4581,7 @@ function buildMixUI(){
   soloedChannel = null;
   MIX_BUS_KEYS.forEach(function(key){ if (state.channels[key]) state.channels[key].soloGain.gain.value = 1; });
   wrap.appendChild(buildChannelStrip('soundpad', 'SOUND PADS'));
-  wrap.appendChild(buildChannelStrip('soundboard', 'SOUNDBOARD'));
+  wrap.appendChild(buildChannelStrip('Soundplant', 'Soundplant'));
   wrap.appendChild(buildChannelStrip('loop', 'LOOP'));
   wrap.appendChild(buildChannelStrip('music', 'MUSIC'));
   wrap.appendChild(buildSendsMasterStrip());
@@ -5170,7 +5170,7 @@ function restoreSettings(){
       if (s.accent) applyAccent(s.accent, s.accentDeep || darken(s.accent, 70), s.accentGlow || lighten(s.accent, 30));
       if (s.flash) applyFlash(s.flash);
       if (s.lightStyle) applyLightStyle(s.lightStyle);
-      if (s.audioBalance) settings.audioBalance = Object.assign({ soundpad:false, soundboard:false, loop:false, music:false }, s.audioBalance);
+      if (s.audioBalance) settings.audioBalance = Object.assign({ soundpad:false, Soundplant:false, loop:false, music:false }, s.audioBalance);
       if (s.spTransition){
         Object.assign(settings.spTransition, s.spTransition);
         settings.spTransition.stopFade = clamp(settings.spTransition.stopFade || 10, 1, 20);
@@ -5368,7 +5368,7 @@ function clearAllSavedData(){
 }
 
 /* ============================================================
-   SOUNDBOARD PRESETS
+   Soundplant PRESETS
 ============================================================ */
 function refreshPresetDropdown(){
   return storageGet('preset-index', false).then(function(idxRaw){
@@ -5382,7 +5382,7 @@ function refreshPresetDropdown(){
   });
 }
 document.getElementById('preset-save-btn').addEventListener('click', function(){
-  const name = prompt('Name this soundboard preset:', 'My Preset');
+  const name = prompt('Name this Soundplant preset:', 'My Preset');
   if (!name) return;
   const id = uid('preset');
   const padsSnapshot = state.drumPads.map(function(pad){
@@ -5428,7 +5428,7 @@ document.getElementById('preset-select').addEventListener('change', function(e){
         }).catch(function(){}));
       }
     }
-    Promise.all(jobs).then(function(){ renderSoundboardUI(); });
+    Promise.all(jobs).then(function(){ renderSoundplantUI(); });
   });
 });
 document.getElementById('preset-rename-btn').addEventListener('click', function(){
@@ -5765,7 +5765,7 @@ function sp2Play(code,shift){
   if(k.verb>0){const cv=ctx.createConvolver();cv.buffer=getImpulse(k.verbSize);node=sp2Mix(node,cv,clamp(k.verb/100*k.verbGain/100,0,1));}
   const g=ctx.createGain(), p=ctx.createStereoPanner(); p.pan.value=k.pan/100; v.g=g;
   if(k.fadeIn>0){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(lvl,t+k.fadeIn);}else g.gain.setValueAtTime(lvl,t);
-  node.connect(g);g.connect(p);p.connect(state.channels.soundboard.input);
+  node.connect(g);g.connect(p);p.connect(state.channels.Soundplant.input);
   k.voices.push(v); sp2Vis(k);
   sp2Log((SP2_CODES[code]||code)+' \u25B6 '+(k.name||k.fileName));
 }
@@ -5853,7 +5853,7 @@ function sp2Preview(it){
   sp2.prevId=it.id;
   sp2Resolve(it).then(function(r){
     if(!r||sp2.prevId!==it.id)return; ensureAudio();
-    const s=ctx.createBufferSource();s.buffer=r.buffer;s.connect(state.channels.soundboard.input);
+    const s=ctx.createBufferSource();s.buffer=r.buffer;s.connect(state.channels.Soundplant.input);
     s.start(0,r.ts||0,r.te?Math.max(0.05,r.te-r.ts):undefined);
     s.onended=function(){if(sp2.prev===s){sp2.prev=null;sp2.prevId=null;sp2RenderBook();}};
     sp2.prev=s;sp2RenderBook();
@@ -6146,7 +6146,7 @@ document.addEventListener('keydown',function(e){
   const t=e.target&&e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.ctrlKey||e.metaKey||e.altKey)return;
   const tab=getActiveTab();
-  if(!sp2.bg&&tab!=='soundboard'&&tab!=='multiview')return;
+  if(!sp2.bg&&tab!=='Soundplant'&&tab!=='multiview')return;
   if(/^(Numpad|NumLock)/.test(e.code)&&!sp2.num){sp2.num=true;renderSoundplant();}
   if(/^(Insert|Home|End|PageUp|PageDown|Delete)$/.test(e.code)&&!sp2.nav){sp2.nav=true;renderSoundplant();}
   if(e.code==='Escape'){sp2StopAll(0.04);return;}
@@ -6163,7 +6163,7 @@ document.addEventListener('keyup',function(e){
    INIT
 ============================================================ */
 renderSoundPadsUI();
-renderSoundboardUI();
+renderSoundplantUI();
 initMediaListUI('loop');
 initMediaListUI('music');
 renderLoopsUI();
