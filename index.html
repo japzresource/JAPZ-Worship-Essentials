@@ -529,7 +529,9 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 
 
 /* ============================= OCTAVE (Sound Pads) ============================= */
-.sp-octave{ display:flex; align-items:center; justify-content:center; gap:8px; margin:-4px auto 16px; font-family:var(--font-mono); }
+.sp-octave{ display:flex; align-items:center; justify-content:center; gap:8px; margin:14px auto 0; font-family:var(--font-mono); }
+.sp-keys-area{ display:block; }
+.mix-eq-body{ display:flex; flex-direction:column; align-items:center; width:100%; gap:10px; }
 .sp-octave-label{ font-size:10.5px; letter-spacing:0.18em; color:var(--text-dim); text-transform:uppercase; }
 .sp-octave-ctl{ display:flex; align-items:center; background:var(--panel); border:1px solid var(--border-strong); border-radius:999px; padding:3px; gap:2px; }
 .sp-octave-step{ width:30px; height:30px; border-radius:50%; background:transparent; border:none; color:var(--text); font-size:17px; font-weight:700; line-height:1; display:flex; align-items:center; justify-content:center; }
@@ -717,22 +719,86 @@ html,body{ overflow:hidden; }
 #app:not(.multiview-mode) .section-heading{ flex:0 0 auto; margin-bottom:10px; }
 #app:not(.multiview-mode) .section-toolbar{ flex:0 0 auto; margin-bottom:10px; }
 #app:not(.multiview-mode) .loop-search{ flex:0 0 auto; }
-/* Sound Pads: the 12 keys fill whatever space is left */
+/* Sound Pads: 3 columns x 4 rows (A ... G#), square-ish keys that scale to the
+   space left, with the Octave control pinned underneath. */
 #app:not(.multiview-mode) .piano-wrap{ flex:1; min-height:0; display:flex; flex-direction:column; max-width:none; width:100%; margin:0; }
 #app:not(.multiview-mode) .mode-toggle{ flex:0 0 auto; margin-bottom:10px; }
-#app:not(.multiview-mode) .sp-octave{ flex:0 0 auto; margin:0 auto 10px; }
-#app:not(.multiview-mode) .key-grid{ flex:1; min-height:0; width:100%; max-width:1100px; grid-template-columns:repeat(6,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:10px; }
-#app:not(.multiview-mode) .key-grid .key-cell{ aspect-ratio:auto; min-height:0; }
+#app:not(.multiview-mode) .sp-keys-area{ flex:1; min-height:0; container-type:size; display:flex; align-items:center; justify-content:center; }
+#app:not(.multiview-mode) .key-grid{
+  flex:none; width:min(100cqw, 560px, 75cqh); max-width:none; margin:0; aspect-ratio:3/4;
+  grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:repeat(4,minmax(0,1fr)); gap:12px;
+}
+#app:not(.multiview-mode) .key-grid .key-cell{ aspect-ratio:auto; min-height:0; min-width:0; }
+#app:not(.multiview-mode) .key-grid .key-cell-label{ font-size:clamp(18px, 5.5cqmin, 30px); }
+#app:not(.multiview-mode) .sp-octave{ flex:0 0 auto; margin:12px auto 0; }
 #app:not(.multiview-mode) .sp-filter-panel{ flex:1; min-height:0; overflow-y:auto; }
-@media (max-width:700px){ #app:not(.multiview-mode) .key-grid{ grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-rows:repeat(3,minmax(0,1fr)); gap:8px; } }
+@media (max-width:700px){ #app:not(.multiview-mode) .key-grid{ gap:8px; } }
 /* Loops / Music */
 #app:not(.multiview-mode) .media-layout{ flex:1; min-height:0; align-items:stretch; }
 #app:not(.multiview-mode) .media-main{ overflow-y:auto; min-height:0; }
 #app:not(.multiview-mode) .media-queue-panel{ min-height:0; max-height:none; overflow-y:auto; }
 /* Soundboard */
 #app:not(.multiview-mode) #sp2-root{ flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; }
-/* Mix */
-#app:not(.multiview-mode) .mix-strips{ flex:1; min-height:0; overflow:auto; padding-bottom:6px; }
+/* Mix — everything fits on one screen, no scrollbars. The six strips share the
+   width equally, and each strip's fader stretches to fill whatever height is
+   left after the knobs/effects, so the layout adapts to the window size. */
+#app:not(.multiview-mode) .mix-strips{
+  flex:1; min-height:0; overflow:hidden; padding:0;
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,.9fr) minmax(0,1fr); gap:10px; align-items:stretch;
+}
+#app:not(.multiview-mode) .mix-strip{
+  flex:none; min-width:0; min-height:0; height:100%; padding:10px 8px; gap:6px; border-radius:12px;
+  overflow-x:hidden; overflow-y:auto; scrollbar-width:none;   /* last resort only: invisible scroll if a panel is expanded on a very short window */
+}
+#app:not(.multiview-mode) .mix-strip::-webkit-scrollbar{ display:none; }
+#app:not(.multiview-mode) .mix-strip .strip-label{ font-size:12px; flex:0 0 auto; }
+/* knobs: slightly smaller dials, three across */
+#app:not(.multiview-mode) .mix-strip .strip-knob-row{ flex-wrap:nowrap; gap:2px; width:100%; justify-content:space-around; flex:0 0 auto; }
+#app:not(.multiview-mode) .mix-strip .knob{ width:auto; gap:2px; }
+#app:not(.multiview-mode) .mix-strip .knob-dial{ --d:34px; width:var(--d); height:var(--d); }
+#app:not(.multiview-mode) .mix-strip .knob-indicator{ top:3px; height:11px; transform-origin:50% calc(var(--d) / 2 - 3px); }
+#app:not(.multiview-mode) .mix-strip .knob-label{ font-size:7.5px; }
+#app:not(.multiview-mode) .mix-strip .knob-value{ font-size:9px; }
+/* effect modules */
+#app:not(.multiview-mode) .mix-strip .fx-module{ padding-top:5px; flex:0 0 auto; }
+#app:not(.multiview-mode) .mix-strip .fx-module-body{ padding-top:6px; gap:6px; }
+#app:not(.multiview-mode) .mix-strip .fx-power-btn{ width:26px; height:20px; font-size:9px; }
+#app:not(.multiview-mode) .mix-strip .eq-open-btn{ margin-top:0; padding:5px 4px; font-size:9px; flex:0 0 auto; }
+#app:not(.multiview-mode) .mix-eq-body{ display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:6px 8px; }
+#app:not(.multiview-mode) .mix-eq-body .mini-eq-canvas{ grid-column:1 / -1; height:34px; }
+#app:not(.multiview-mode) .mix-eq-body .eq-open-btn{ white-space:normal; line-height:1.25; }
+#app:not(.multiview-mode) .mix-strip .reverb-size-btn{ padding:4px 6px; }
+/* fader: stretches to fill the strip */
+#app:not(.multiview-mode) .mix-strip .fader-wrap{ flex:1 1 0; min-height:96px; gap:4px; }
+#app:not(.multiview-mode) .mix-strip .fader-row{ flex:1 1 0; min-height:0; width:100%; justify-content:center; align-items:stretch; }
+#app:not(.multiview-mode) .mix-strip .fader-track{ height:auto; width:44px; align-self:stretch; container-type:size; }
+#app:not(.multiview-mode) .mix-strip .fader-input{ width:calc(100cqh - 20px); }
+#app:not(.multiview-mode) .mix-strip .fader-scale-wrap{ height:auto; align-self:stretch; }
+#app:not(.multiview-mode) .mix-strip .strip-buttons{ flex:0 0 auto; }
+#app:not(.multiview-mode) .mix-strip .mute-btn,
+#app:not(.multiview-mode) .mix-strip .solo-btn{ padding:5px 9px; }
+/* master + sends-master extras */
+#app:not(.multiview-mode) .mix-strip .output-select-wrap{ flex:0 0 auto; }
+#app:not(.multiview-mode) .mix-strip .output-select-wrap label{ margin-bottom:3px; font-size:8.5px; }
+#app:not(.multiview-mode) .mix-strip .output-select{ padding:5px 4px; }
+#app:not(.multiview-mode) .sends-master-strip .settings-note{ font-size:10px; line-height:1.35; flex:0 0 auto; }
+/* shorter windows: tighten further before anything has to scroll */
+@media (max-height:800px){
+  #app:not(.multiview-mode) .mix-strip .mini-eq-canvas{ display:none; }
+  #app:not(.multiview-mode) .mix-strip .knob-dial{ --d:30px; }
+  #app:not(.multiview-mode) .mix-strip{ gap:4px; padding:8px 7px; }
+}
+@media (max-height:640px){
+  #app:not(.multiview-mode) .mix-eq-body .knob{ display:none; }   /* Shape is also in the full Spectrum EQ editor */
+  #app:not(.multiview-mode) .mix-eq-body{ grid-template-columns:minmax(0,1fr); }
+  #app:not(.multiview-mode) .sends-master-strip .settings-note{ display:none; }
+  #app:not(.multiview-mode) .mix-strip .fader-wrap{ min-height:80px; }
+}
+/* phones / narrow windows: six strips can't share the width, so side-scrolling is allowed there only */
+@media (max-width:900px){
+  #app:not(.multiview-mode) .mix-strips{ display:flex; overflow-x:auto; overflow-y:hidden; }
+  #app:not(.multiview-mode) .mix-strip{ flex:0 0 170px; }
+}
 @media (max-width:900px){ #app:not(.multiview-mode) .media-layout{ flex-direction:column; } #app:not(.multiview-mode) .media-queue-panel{ flex:0 0 auto; max-height:40%; } }
 </style>
 </head>
@@ -810,8 +876,9 @@ html,body{ overflow:hidden; }
           <div class="mode-toggle">
             <div class="mode-toggle-track sp-filter-track" id="sp-filter-row"></div>
           </div>
-          <div class="sp-octave" id="sp-octave-row"></div>
-          <div class="key-grid" id="sp-piano"></div>
+          <div class="sp-keys-area" id="sp-keys-area">
+            <div class="key-grid" id="sp-piano"></div>
+          </div>
           <div class="sp-filter-panel" id="sp-filter-panel" style="display:none;">
             <div class="settings-section-title">Key Transition <span style="font-weight:400; text-transform:none; letter-spacing:0;">(what happens when you tap a different key)</span></div>
             <div class="light-style-row" id="sp-transition-mode-row" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
@@ -841,6 +908,7 @@ html,body{ overflow:hidden; }
             </div>
             <div class="settings-note" style="margin-top:6px;">Briefly lowers Loops &amp; Music while a key transition is happening, so the change reads clearly instead of getting buried under the backing track — then eases them back to normal.</div>
           </div>
+          <div class="sp-octave" id="sp-octave-row"></div>
         </div>
       </div>
     </section>
@@ -2090,7 +2158,8 @@ function renderSPViewVisibility(){
   const panel = document.getElementById('sp-filter-panel');
   if (!grid || !panel) return;
   const showFilter = activeSPView === 'filter';
-  grid.style.display = showFilter ? 'none' : '';
+  const keysArea = document.getElementById('sp-keys-area') || grid;
+  keysArea.style.display = showFilter ? 'none' : '';
   panel.style.display = showFilter ? '' : 'none';
   if (showFilter) renderSPTransitionSection();
 }
@@ -4288,7 +4357,7 @@ function buildChannelStrip(channelKey, label){
     }
   });
   const eqOpenBtn = el('button', { class: 'eq-open-btn', text: 'Open Spectrum EQ \u2197', onClick: function(){ openEQDetail(channelKey, label); } });
-  const eqBody = el('div', { style: 'display:flex; flex-direction:column; align-items:center; width:100%; gap:10px;' }, [
+  const eqBody = el('div', { class: 'mix-eq-body' }, [
     miniCanvas, shapeKnob.el, eqOpenBtn
   ]);
   strip.appendChild(buildFXModule('EQ', [eqBody], { expanded: true }));
