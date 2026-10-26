@@ -699,19 +699,105 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .about-projects{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
 .about-chip{ padding:6px 12px; border-radius:999px; background:var(--panel-2); border:1px solid var(--border-strong); font-family:var(--font-mono); font-size:11px; color:var(--text); }
 
-/* ============================= MIX: fit the width, no side-scroll ============================= */
-/* The six strips now share the panel width instead of sitting in a side-scrolling row,
-   and the Mix page gets a wider panel so nothing is cramped. */
-#app:not(.multiview-mode) .app-main:has(#section-mix.active){ max-width:1800px; }
+/* ============================= MIX: compact strips, no side-scroll ============================= */
+/* Same compact 190px strips as before. They now sit in a centred grid, and only
+   shrink (instead of scrolling) when the window is narrower than the six of them. */
 #app:not(.multiview-mode) .mix-strips{
-  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,.9fr) minmax(0,1fr);
+  display:grid; grid-template-columns:repeat(6,minmax(0,190px)); justify-content:center;
   gap:14px; overflow:visible; padding:6px 0 10px; align-items:start;
 }
-#app:not(.multiview-mode) .mix-strip{ flex:none; min-width:0; padding:16px 8px; }
+#app:not(.multiview-mode) .mix-strip{ flex:none; min-width:0; }
 @media (max-width:1100px){
-  #app:not(.multiview-mode) .mix-strips{ display:flex; overflow-x:auto; padding:6px 2px 14px; gap:14px; }
-  #app:not(.multiview-mode) .mix-strip{ flex:0 0 170px; }
+  #app:not(.multiview-mode) .mix-strips{ display:flex; overflow-x:auto; justify-content:flex-start; padding:6px 2px 14px; gap:18px; }
+  #app:not(.multiview-mode) .mix-strip{ flex:0 0 190px; }
 }
+
+/* ============================= SOUNDBOARD: selected-key settings on the right ============================= */
+.sp2-main{ display:grid; grid-template-columns:minmax(0,1fr) 700px; gap:14px; align-items:start; }
+.sp2-left{ min-width:0; }
+.sp2-right{ min-width:0; }
+.sp2-right .sp2-info{ margin-top:0; }
+.sp2-right .sp2-ctrls{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); grid-auto-flow:dense; gap:8px; margin-top:8px; }
+.sp2-right .sp2-ctrls > .sp2-grp{ min-width:0; }
+.sp2-right .sp2-ctrls > .sp2-grp:nth-child(1),
+.sp2-right .sp2-ctrls > .sp2-grp:nth-child(5){ grid-column:1 / -1; }
+.sp2-right .sp2-gb{ gap:8px 10px; }
+/* on narrower windows there isn't room for keyboard + side panel, so the panel drops underneath */
+@media (max-width:1580px){
+  .sp2-main{ grid-template-columns:minmax(0,1fr); }
+}
+
+/* ============================= PAGE CAROUSEL ============================= */
+/* The selected page sits in the middle at full size. Its neighbours sit either side
+   as small, dimmed previews (Sound Pads has none on the left, Mix none on the right).
+   Switching pages slides everything smoothly along, like turning a picker wheel. */
+#app:not(.multiview-mode) .app-main{
+  flex:0 0 auto; position:relative; overflow:hidden; max-width:none; padding-left:0; padding-right:0;
+  transition:height .75s cubic-bezier(.22,1,.36,1);
+}
+#app:not(.multiview-mode) .app-footer{ margin-top:auto; }
+#app:not(.multiview-mode) .app-main > .section:not(#section-multiview){
+  display:block !important; position:absolute; top:22px; left:50%; margin:0; animation:none;
+  transform-origin:50% 0; will-change:transform;
+  opacity:0; visibility:hidden; pointer-events:none; z-index:1;
+  transition:transform .8s cubic-bezier(.22,1,.36,1), opacity .6s ease, visibility 0s linear .8s;
+}
+#app:not(.multiview-mode) .app-main > .section.cv-active:not(#section-multiview),
+#app:not(.multiview-mode) .app-main > .section.cv-side:not(#section-multiview){
+  opacity:1; visibility:visible; pointer-events:auto;
+  transition:transform .8s cubic-bezier(.22,1,.36,1), opacity .6s ease, visibility 0s linear 0s;
+}
+#app:not(.multiview-mode) .app-main > .section.cv-active:not(#section-multiview){ z-index:3; }
+#app:not(.multiview-mode) .app-main > .section.cv-side:not(#section-multiview){
+  z-index:2; cursor:pointer;
+  -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 62%,transparent 100%);
+          mask-image:linear-gradient(to bottom,#000 0,#000 62%,transparent 100%);
+}
+/* the dim layer on a preview also catches the click, so nothing inside it can be pressed by accident */
+#app:not(.multiview-mode) .app-main > .section.cv-side:not(#section-multiview)::after{
+  content:''; position:absolute; inset:0; z-index:60; border-radius:14px;
+  background:rgba(6,6,8,.55); transition:background .3s ease;
+}
+#app:not(.multiview-mode) .app-main > .section.cv-side:not(#section-multiview):hover::after{ background:rgba(6,6,8,.28); }
+
+/* ============================= TIMED PLAYLIST ============================= */
+.pl-pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:var(--panel-2); border:1px solid rgba(55,224,140,0.4); color:#bff5d6; font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.06em; white-space:nowrap; cursor:pointer; }
+.pl-pill::before{ content:''; width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); animation:plpulse 1.4s ease-in-out infinite; }
+.pl-pill.ending{ color:#ffe0a8; border-color:rgba(255,176,32,0.5); }
+.pl-pill.ending::before{ background:var(--amber); box-shadow:0 0 6px var(--amber); }
+@keyframes plpulse{ 50%{ opacity:0.3; } }
+.pl-panel{ margin-bottom:10px; padding:10px 12px; background:var(--panel); border:1px solid var(--border-strong); border-radius:10px; }
+.pl-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.pl-title{ font-family:var(--font-display); font-weight:700; font-size:15px; letter-spacing:0.06em; text-transform:uppercase; }
+.pl-count{ font-family:var(--font-mono); font-size:11px; padding:2px 8px; border-radius:999px; background:var(--panel-2); border:1px solid var(--border-strong); color:var(--text-muted); }
+.pl-count.run{ color:#bff5d6; border-color:rgba(55,224,140,0.45); }
+.pl-count.ending{ color:#ffe0a8; border-color:rgba(255,176,32,0.5); }
+.pl-spacer{ flex:1; }
+.pl-bar{ height:3px; border-radius:2px; background:var(--panel-3); margin-top:8px; overflow:hidden; }
+.pl-bar > div{ height:100%; width:0; background:var(--grad-accent); }
+.pl-msg{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); margin:8px 0 6px; min-height:14px; }
+.pl-msg.building{ color:#bff5d6; }
+.pl-list{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.pl-chip{ display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 8px; border-radius:8px; background:var(--panel-2); border:1px solid var(--border-strong); font-size:11.5px; max-width:260px; }
+.pl-chip.now{ border-color:var(--green); box-shadow:0 0 0 1px var(--green) inset; }
+.pl-chip.bad{ opacity:0.5; }
+.pl-num{ font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); }
+.pl-keyl{ font-family:var(--font-mono); font-size:10px; padding:1px 5px; border-radius:4px; background:var(--accent-deep); color:#fff; }
+.pl-nm{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pl-dur{ font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); }
+.pl-mini{ width:20px; height:20px; padding:0; border-radius:5px; background:transparent; border:1px solid transparent; color:var(--text-muted); font-size:12px; line-height:1; }
+.pl-mini:hover{ color:#fff; border-color:var(--border-strong); }
+.pl-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:8px; margin-bottom:10px; }
+.pl-grp{ background:var(--card); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+.pl-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:6px; font-family:var(--font-mono); font-size:11px; color:var(--text-muted); }
+.pl-row .sp2-num{ width:60px; }
+.pl-row.full .sp2-sel{ flex:1; min-width:0; }
+.pl-presets{ display:flex; gap:4px; flex-wrap:wrap; margin-top:8px; }
+.pl-presets .toolbar-btn{ padding:3px 8px; font-size:10.5px; }
+.pl-note{ font-size:10.5px; color:var(--text-dim); line-height:1.45; margin-top:6px; }
+.pl-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.sp2-key.pl-flash{ animation:plflash 0.5s ease; }
+@keyframes plflash{ 0%{ box-shadow:0 0 0 3px var(--green); } 100%{ box-shadow:0 0 0 0 transparent; } }
 </style>
 </head>
 <body data-light-style="flash">
@@ -760,6 +846,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
       <span id="save-indicator"></span>
     </div>
     <div class="header-right">
+      <span class="pl-pill" id="pl-pill" style="display:none;" title="Playlist countdown — click to open"></span>
       <span class="sb-key-pill clickable" id="sb-key-pill" style="display:none;" title="Soundboard keyboard trigger"></span>
       <button class="header-btn" id="multiview-btn" title="Multiview — see every section at once"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Multiview</button>
       <button class="header-btn" id="settings-btn"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"></path></svg> Settings</button>
@@ -771,7 +858,6 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
     <button class="nav-tab active" data-tab="soundpads">Sound Pads</button>
     <button class="nav-tab" data-tab="Soundboard">Soundboard</button>
     <button class="nav-tab" data-tab="loops">Loops</button>
-    <button class="nav-tab" data-tab="music">Music</button>
     <button class="nav-tab" data-tab="mix">Mix</button>
   </nav>
 
@@ -812,11 +898,11 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
             <div class="settings-note" style="margin-top:6px;">How long a key takes to fade out when you tap that same key again to silence it — a slow wind-down instead of a hard stop.</div>
             <div class="light-style-row" id="sp-duck-row" style="display:flex; gap:8px; margin-top:14px;"></div>
             <div id="sp-duck-amount-wrap" class="transition-duration-row" style="margin-top:8px;">
-              <span>Duck Loops/Music to</span>
+              <span>Duck Loops to</span>
               <input type="number" id="sp-duck-amount" min="5" max="95" step="5">
               <span>%</span>
             </div>
-            <div class="settings-note" style="margin-top:6px;">Briefly lowers Loops &amp; Music while a key transition is happening, so the change reads clearly instead of getting buried under the backing track — then eases them back to normal.</div>
+            <div class="settings-note" style="margin-top:6px;">Briefly lowers Loops while a key transition is happening, so the change reads clearly instead of getting buried under the backing track — then eases them back to normal.</div>
           </div>
           <div class="sp-octave" id="sp-octave-row"></div>
         </div>
@@ -865,27 +951,6 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
       </div>
     </section>
 
-    <!-- MUSIC SECTION -->
-    <section class="section" id="section-music">
-      <div class="section-panel">
-        <div class="section-heading">
-          <h2 class="section-title">Music</h2>
-          <span class="section-hint">Full songs, vocals &amp; instrumentals — same editor as Loops</span>
-        </div>
-        <div class="section-toolbar">
-          <button class="toolbar-btn" id="music-edit-mode-btn"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"></path></svg> Edit Mode: Off</button>
-        </div>
-        <div class="loop-search">
-          <span class="loop-search-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></span>
-          <input type="text" id="music-search-input" placeholder="Search music by name…">
-        </div>
-        <div class="media-layout">
-          <div class="media-main"><div class="loop-list" id="music-list"></div></div>
-          <div class="media-queue-panel" id="music-queue-panel"></div>
-        </div>
-      </div>
-    </section>
-
     <!-- MIX SECTION -->
     <section class="section" id="section-mix">
       <div class="section-panel">
@@ -911,8 +976,6 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         </div>
         <div class="mv-hsplit" id="mv-hsplit-1"></div>
         <div class="mv-row mv-row-2" id="mv-row-2">
-          <div class="multiview-panel" id="mv-panel-music" style="flex:0.8 1 0;"><div class="multiview-panel-header">Music</div><div class="multiview-panel-body" id="mv-slot-music"></div></div>
-          <div class="mv-vsplit" id="mv-vsplit-3"></div>
           <div class="multiview-panel" id="mv-panel-mix" style="flex:1.6 1 0;"><div class="multiview-panel-header">Mix</div><div class="multiview-panel-body" id="mv-slot-mix"></div></div>
         </div>
       </div>
@@ -921,7 +984,6 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
   </main>
 
   <div class="global-now-playing" id="global-now-playing">
-    <div class="now-playing-bar" id="music-now-playing"></div>
     <div class="now-playing-bar" id="loop-now-playing"></div>
   </div>
 
@@ -1076,8 +1138,8 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
       </div>
       <div class="about-feats">
         <div class="about-feat"><b>Sound Pads</b><span>Twelve chromatic keys of ambient pads with seamless looping, smooth key-to-key transitions and an octave shift.</span></div>
-        <div class="about-feat"><b>Soundboard</b><span>Every keyboard key is a pad. Assign any audio file to a key and trigger it with your keyboard.</span></div>
-        <div class="about-feat"><b>Loops &amp; Music</b><span>Backing tracks and full songs with queues, trimming, fades, tempo and pitch control.</span></div>
+        <div class="about-feat"><b>Soundboard</b><span>Every keyboard key is a pad. Assign any audio file to a key and trigger it with your keyboard. Hit Playlist, tap keys to build a timed playlist, and choose how it fades out.</span></div>
+        <div class="about-feat"><b>Loops</b><span>Backing tracks with queues, trimming, fades, tempo and pitch control.</span></div>
         <div class="about-feat"><b>Mix</b><span>Per-channel EQ, compression, delay, reverb, panning, faders and extra output sends.</span></div>
       </div>
       <div class="about-credit">
@@ -1376,11 +1438,10 @@ const CHROMATIC_KEYS = [
   { id:'G',  label:'G',  sub:null },
   { id:'G#', label:'G\u266F', sub:'Ab' }
 ];
-const MIX_BUS_KEYS = ['soundpad', 'Soundboard', 'loop', 'music'];
+const MIX_BUS_KEYS = ['soundpad', 'Soundboard', 'loop'];
 
 const DRUM_PAD_COUNT = 12;
 const LOOP_SLOT_COUNT = 0; // loops now start empty — tap "+ Upload" to add one
-const MUSIC_SLOT_COUNT = 0;
 const PALETTE = ['#ff2743','#ff9427','#e0c22e','#37e08c','#4ea8ff','#b06bff','#ff4fa3'];
 
 const DEFAULT_EQ = function(){ return { lowFreq:150, lowGain:0, midFreq:1000, midGain:0, highFreq:6000, highGain:0 }; };
@@ -1409,14 +1470,13 @@ const state = {
   channels: {},
   soundPads: {},   // key id -> [padObj]
   drumPads: [],
-  loopPads: [],
-  musicPads: []
+  loopPads: []
 };
-const mediaSearchTerms = { loop: '', music: '' };
-const mediaQueue = { loop: [], music: [] };
-const queuePlaying = { loop: false, music: false };
-const queueIndex = { loop: -1, music: -1 };
-const queueTransition = { loop: { type: 'cut', duration: 2 }, music: { type: 'cut', duration: 2 } };
+const mediaSearchTerms = { loop: '' };
+const mediaQueue = { loop: [] };
+const queuePlaying = { loop: false };
+const queueIndex = { loop: -1 };
+const queueTransition = { loop: { type: 'cut', duration: 2 } };
 let activeSPCategory = 'A';
 let currentPresetId = '';
 
@@ -1431,12 +1491,12 @@ const settings = {
     arming: 'always',        // 'always' | 'toggle' (tap trigger key to arm / lock) | 'hold' (only while trigger key is held)
     trigger: 'Backquote'     // KeyboardEvent.code of the trigger key
   },
-  audioBalance: { soundpad: false, Soundboard: false, loop: false, music: false },
+  audioBalance: { soundpad: false, Soundboard: false, loop: false },
   spTransition: {
     mode: 'crossfade',   // 'crossfade' (overlap) | 'wait' (fade out fully first, then start) | 'cut' (instant)
     duration: 5,          // seconds — key-change fade length (crossfade & wait modes)
     loopXfade: 2.5,        // seconds — a pad's own internal loop-point crossfade
-    duckOthers: false,     // briefly duck Loops + Music while a key transition happens
+    duckOthers: false,     // briefly duck Loops while a key transition happens
     duckAmount: 40,          // % — how far to duck (40 = duck down to 40% volume)
     stopFade: 10             // seconds — fade length when the user taps the SAME key again to turn it off
   }
@@ -1467,14 +1527,12 @@ function makeEditablePad(prefix, i, defaultName){
 }
 function makeDrumPad(i){ return makeEditablePad('dp', i, 'PAD ' + (i + 1)); }
 function makeLoopPad(i){ return makeEditablePad('lp', i, 'LOOP ' + (i + 1)); }
-function makeMusicPad(i){ return makeEditablePad('mu', i, 'TRACK ' + (i + 1)); }
 
 CHROMATIC_KEYS.forEach(function(k){
   state.soundPads[k.id] = makeSoundPad(k.id);
 });
 state.drumPads = Array.from({ length: DRUM_PAD_COUNT }, function(_, i){ return makeDrumPad(i); });
 state.loopPads = [];
-state.musicPads = [];
 
 /* ============================================================
    AUDIO ENGINE
@@ -1595,7 +1653,7 @@ function buildChannel(name, opts){
   postGain.connect(sendTap);
 
   // SENDS MASTER — this strip's own copy of the global "Sends Master"
-  // fader (the strip between Music and Master in the Mix tab). Chained
+  // fader (the strip between Loop and Master in the Mix tab). Chained
   // after sendTap so it never touches the main fader or main mute path,
   // only whatever this strip is sending out. Every strip (each channel
   // and the master bus) gets its own pair of nodes here so their sends
@@ -1665,7 +1723,6 @@ function initAudio(){
   state.channels.soundpad = buildChannel('Sound Pads');
   state.channels.Soundboard = buildChannel('Soundboard');
   state.channels.loop = buildChannel('Loop');
-  state.channels.music = buildChannel('Music');
 
   MIX_BUS_KEYS.forEach(function(key){
     state.channels[key].analyser.connect(masterBus.input);
@@ -1989,8 +2046,7 @@ function refreshAllUI(){
   renderSoundPadsUI();
   renderSoundboardUI();
   renderLoopsUI();
-  renderMusicUI();
-}
+  }
 
 /* ============================================================
    SOUND PADS — each of the 12 chromatic keys is itself a single
@@ -2205,7 +2261,7 @@ function stopSoundPadScheduler(pad){
 
 // A channel's own dedicated "duck" gain stage — briefly pulled down and
 // eased back up, entirely separate from the user's Trim/Gain knobs. Used
-// so Loops + Music can automatically make room for a Sound Pad key change.
+// so Loops can automatically make room for a Sound Pad key change.
 function duckChannel(busKey, downSeconds, holdSeconds){
   const ch = state.channels[busKey];
   if (!ch || !ch.duck || !ctx) return;
@@ -2222,7 +2278,6 @@ function duckChannel(busKey, downSeconds, holdSeconds){
 function duckOtherBusesForKeyChange(fadeSeconds){
   if (!settings.spTransition.duckOthers) return;
   duckChannel('loop', Math.min(fadeSeconds, 1.2), Math.max(0, fadeSeconds - Math.min(fadeSeconds, 1.2) * 2));
-  duckChannel('music', Math.min(fadeSeconds, 1.2), Math.max(0, fadeSeconds - Math.min(fadeSeconds, 1.2) * 2));
 }
 
 // Starts one "generation" (playthrough) of pad.buffer, fading its gain in
@@ -3257,10 +3312,9 @@ document.getElementById('de-close').addEventListener('click', closePadEditor);
    just like the Soundboard)
 ============================================================ */
 const MEDIA_KINDS = {
-  loop: { arrayKey: 'loopPads', listId: 'loop-list', searchId: 'loop-search-input', editBtnId: 'loop-edit-mode-btn', queuePanelId: 'loop-queue-panel', busKey: 'loop', makePad: makeLoopPad, emptyLabel: 'No loops match your search.', addLabel: 'Upload a loop' },
-  music: { arrayKey: 'musicPads', listId: 'music-list', searchId: 'music-search-input', editBtnId: 'music-edit-mode-btn', queuePanelId: 'music-queue-panel', busKey: 'music', makePad: makeMusicPad, emptyLabel: 'No tracks match your search.', addLabel: 'Upload a track' }
+  loop: { arrayKey: 'loopPads', listId: 'loop-list', searchId: 'loop-search-input', editBtnId: 'loop-edit-mode-btn', queuePanelId: 'loop-queue-panel', busKey: 'loop', makePad: makeLoopPad, emptyLabel: 'No loops match your search.', addLabel: 'Upload a loop' }
 };
-const mediaEditModeOn = { loop: false, music: false };
+const mediaEditModeOn = { loop: false };
 
 function initMediaListUI(kind){
   const cfg = MEDIA_KINDS[kind];
@@ -3663,7 +3717,6 @@ function buildMediaRowEl(pad, kind){
 }
 
 function renderLoopsUI(){ renderMediaListUI('loop'); }
-function renderMusicUI(){ renderMediaListUI('music'); }
 function stopAllOtherMediaPads(kind, exceptPad){
   const cfg = MEDIA_KINDS[kind];
   state[cfg.arrayKey].forEach(function(p){
@@ -3740,7 +3793,6 @@ function stopAllAudio(){
   });
   state.drumPads.forEach(function(p){ if (p.isPlaying) stopEditablePad(p); });
   state.loopPads.forEach(function(p){ if (p.isPlaying) stopEditablePad(p); });
-  state.musicPads.forEach(function(p){ if (p.isPlaying) stopEditablePad(p); });
 }
 
 /* ============================================================
@@ -3748,13 +3800,14 @@ function stopAllAudio(){
    resizable grid so every part of the app can be seen at once.
    Leaving Multiview moves them back to their normal tabs.
 ============================================================ */
-const MULTIVIEW_SLOTS = { soundpads:'section-soundpads', Soundboard:'section-Soundboard', loops:'section-loops', music:'section-music', mix:'section-mix' };
+const MULTIVIEW_SLOTS = { soundpads:'section-soundpads', Soundboard:'section-Soundboard', loops:'section-loops', mix:'section-mix' };
 let multiviewActive = false;
 const multiviewHomes = {};
 function enterMultiview(){
   if (multiviewActive) return;
   multiviewActive = true;
   document.getElementById('app').classList.add('multiview-mode');
+  cvClear();
   Object.keys(MULTIVIEW_SLOTS).forEach(function(key){
     const sectionEl = document.getElementById(MULTIVIEW_SLOTS[key]);
     const panelContent = sectionEl.querySelector('.section-panel');
@@ -3808,9 +3861,106 @@ function initMultiviewSplitter(handleId, direction, elA, elB){
 function initAllMultiviewSplitters(){
   initMultiviewSplitter('mv-vsplit-1', 'row', document.getElementById('mv-panel-soundpads'), document.getElementById('mv-panel-Soundboard'));
   initMultiviewSplitter('mv-vsplit-2', 'row', document.getElementById('mv-panel-Soundboard'), document.getElementById('mv-panel-loops'));
-  initMultiviewSplitter('mv-vsplit-3', 'row', document.getElementById('mv-panel-music'), document.getElementById('mv-panel-mix'));
   initMultiviewSplitter('mv-hsplit-1', 'col', document.getElementById('mv-row-1'), document.getElementById('mv-row-2'));
 }
+
+/* ============================================================
+   PAGE CAROUSEL — the selected page is centred at full size; the pages
+   either side of it show as small dimmed previews you can click.
+   Order: Sound Pads · Soundboard · Loops · Mix
+============================================================ */
+const CV_ORDER = ['soundpads', 'Soundboard', 'loops', 'mix'];
+const CV_MAXW = { soundpads: 1276, Soundboard: 1700, loops: 1276, mix: 1276 };
+const CV_SCALE = 0.4, CV_MIN_SCALE = 0.28;
+let cvRO = null, cvObserved = null, cvLastW = -1, cvLastNav = 0;
+function cvMain(){ return document.querySelector('.app-main'); }
+function cvSec(key){ return document.getElementById('section-' + key); }
+function cvClear(){
+  const main = cvMain();
+  if (main) main.style.height = '';
+  CV_ORDER.forEach(function(k){
+    const sec = cvSec(k); if (!sec) return;
+    sec.style.transform = ''; sec.style.width = '';
+    sec.classList.remove('cv-active', 'cv-side', 'cv-hidden');
+  });
+  if (cvRO && cvObserved){ cvRO.unobserve(cvObserved); cvObserved = null; }
+  cvLastW = -1;
+}
+function cvSetHeight(){
+  const main = cvMain(), act = CV_ORDER.indexOf(getActiveTab());
+  if (!main || act < 0) return;
+  const sec = cvSec(CV_ORDER[act]); if (!sec) return;
+  const cs = getComputedStyle(main);
+  main.style.height = (sec.offsetHeight + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)) + 'px';
+}
+function cvLayout(){
+  const app = document.getElementById('app'), main = cvMain();
+  if (!app || !main || app.classList.contains('multiview-mode')) return;
+  const act = CV_ORDER.indexOf(getActiveTab());
+  const W = main.clientWidth;
+  if (act < 0 || !W) return;
+  cvLastW = W;
+  const aw = Math.min(CV_MAXW[CV_ORDER[act]], W - 44);
+  const roomy = W >= 900;                               // too narrow for side previews: just slide
+  CV_ORDER.forEach(function(key, i){
+    const sec = cvSec(key); if (!sec) return;
+    const d = i - act, nat = Math.min(CV_MAXW[key], W - 44);
+    let x = 0, sc = 1, cls = 'cv-active';
+    if (d !== 0){
+      const dir = d > 0 ? 1 : -1;
+      if (Math.abs(d) === 1 && roomy){
+        const gutter = (W - aw) / 2;
+        sc = Math.max(CV_MIN_SCALE, Math.min(CV_SCALE, (gutter - 24) / nat));
+        const pw = nat * sc;
+        x = Math.min(aw / 2 + 24 + pw / 2, W / 2 - 8 - pw / 2) * dir;   // tuck under the page if the gutter is tight
+        cls = 'cv-side';
+      } else {
+        sc = Math.abs(d) === 1 ? 1 : CV_MIN_SCALE;
+        x = dir * (W * (Math.abs(d) === 1 ? 1 : 0.9));                   // parked off-screen, ready to slide in
+        cls = 'cv-hidden';
+      }
+    }
+    sec.style.width = nat + 'px';
+    sec.style.transform = 'translateX(calc(-50% + ' + Math.round(x) + 'px)) scale(' + sc.toFixed(3) + ')';
+    sec.classList.toggle('cv-active', cls === 'cv-active');
+    sec.classList.toggle('cv-side', cls === 'cv-side');
+    sec.classList.toggle('cv-hidden', cls === 'cv-hidden');
+  });
+  const activeSec = cvSec(CV_ORDER[act]);
+  if (cvObserved !== activeSec){
+    if (!cvRO) cvRO = new ResizeObserver(cvSetHeight);
+    if (cvObserved) cvRO.unobserve(cvObserved);
+    cvObserved = activeSec; cvRO.observe(activeSec);
+  }
+  cvSetHeight();
+}
+function cvGo(key){
+  const btn = document.querySelector('.nav-tab[data-tab="' + key + '"]');
+  if (btn) btn.click();
+}
+// click a small preview to bring that page to the middle
+CV_ORDER.forEach(function(key){
+  const sec = cvSec(key); if (!sec) return;
+  sec.addEventListener('click', function(e){
+    if (!sec.classList.contains('cv-side')) return;
+    e.preventDefault(); e.stopPropagation(); cvGo(key);
+  }, true);
+});
+// sideways trackpad scroll / shift+wheel turns the carousel one page at a time
+cvMain().addEventListener('wheel', function(e){
+  if (document.getElementById('app').classList.contains('multiview-mode')) return;
+  if (document.querySelector('.modal-overlay.show')) return;
+  const dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+  if (Math.abs(dx) < 28) return;
+  const now = Date.now(); if (now - cvLastNav < 650) return;
+  const act = CV_ORDER.indexOf(getActiveTab()), nxt = act + (dx > 0 ? 1 : -1);
+  if (act < 0 || nxt < 0 || nxt >= CV_ORDER.length) return;
+  cvLastNav = now; e.preventDefault(); cvGo(CV_ORDER[nxt]);
+}, { passive: false });
+if (window.ResizeObserver){
+  new ResizeObserver(function(){ if (cvMain().clientWidth !== cvLastW) cvLayout(); }).observe(cvMain());
+}
+window.addEventListener('resize', cvLayout);
 
 /* ============================================================
    NAVIGATION
@@ -3827,7 +3977,7 @@ document.getElementById('main-nav').addEventListener('click', function(e){
   exitMultiview();
   if(tab==='Soundboard'){sp2RenderBook();sp2CloudRefresh();sp2Fit();}
   updateNowPlayingBar('loop');
-  updateNowPlayingBar('music');
+  cvLayout();
 });
 document.getElementById('multiview-btn').addEventListener('click', function(){
   document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active'); });
@@ -3837,7 +3987,6 @@ document.getElementById('multiview-btn').addEventListener('click', function(){
   this.classList.add('active');
   enterMultiview();
   updateNowPlayingBar('loop');
-  updateNowPlayingBar('music');
 });
 
 
@@ -4034,8 +4183,8 @@ function renderSbKeySettings(){
     }));
   });
   document.getElementById('sb-scope-desc').textContent = scope === 'page'
-    ? 'Keys only fire while the Soundboard (or Multiview) is on screen. On every other page your keyboard behaves normally, so nothing plays by accident while you work in Loops, Music or Mix.'
-    : 'Keys fire from any page, so you can keep Soundboard sounds on your keyboard while you work in Loops, Music or Mix. Typing in a text field never triggers a sound.';
+    ? 'Keys only fire while the Soundboard (or Multiview) is on screen. On every other page your keyboard behaves normally, so nothing plays by accident while you work in Loops or Mix.'
+    : 'Keys fire from any page, so you can keep Soundboard sounds on your keyboard while you work in Loops or Mix. Typing in a text field never triggers a sound.';
   document.getElementById('sb-arming-desc').textContent =
     sb.arming === 'always' ? 'Every Soundboard key plays the moment you press it.'
     : sb.arming === 'toggle' ? 'Keys stay locked until you tap the trigger key to arm them. Tap it again to lock them. Great for stopping stray key presses from firing sounds.'
@@ -4068,8 +4217,7 @@ function renderAudioBalanceRow(){
   [
     { key: 'soundpad', label: 'Sound Pads' },
     { key: 'Soundboard', label: 'Soundboard' },
-    { key: 'loop', label: 'Loops' },
-    { key: 'music', label: 'Music' }
+    { key: 'loop', label: 'Loops' }
   ].forEach(function(opt){
     row.appendChild(el('button', {
       class: 'balance-toggle-btn' + (settings.audioBalance[opt.key] ? ' active' : ''), text: opt.label,
@@ -4531,7 +4679,7 @@ function buildMasterStrip(){
   return strip;
 }
 
-// SENDS MASTER STRIP — sits between Music and Master. One fader that
+// SENDS MASTER STRIP — sits between Loop and Master. One fader that
 // scales every strip's active sends together (on top of each send's own
 // volume slider in its Sends panel), plus one Mute that silences every
 // send everywhere at once. It doesn't touch the main mix at all — pulling
@@ -4867,7 +5015,6 @@ function buildMixUI(){
   wrap.appendChild(buildChannelStrip('soundpad', 'SOUND PADS'));
   wrap.appendChild(buildChannelStrip('Soundboard', 'Soundboard'));
   wrap.appendChild(buildChannelStrip('loop', 'LOOP'));
-  wrap.appendChild(buildChannelStrip('music', 'MUSIC'));
   wrap.appendChild(buildSendsMasterStrip());
   wrap.appendChild(buildMasterStrip());
 }
@@ -5280,7 +5427,6 @@ function startMiniEqAnimationLoop(){
         masterBus.meterMaskEl.style.height = (100 - level * 100) + '%';
       }
       updateNowPlayingProgress('loop');
-      updateNowPlayingProgress('music');
     }
     requestAnimationFrame(frame);
   }
@@ -5454,7 +5600,7 @@ function restoreSettings(){
       if (s.accent) applyAccent(s.accent, s.accentDeep || darken(s.accent, 70), s.accentGlow || lighten(s.accent, 30));
       if (s.flash) applyFlash(s.flash);
       if (s.lightStyle) applyLightStyle(s.lightStyle);
-      if (s.audioBalance) settings.audioBalance = Object.assign({ soundpad:false, Soundboard:false, loop:false, music:false }, s.audioBalance);
+      if (s.audioBalance) settings.audioBalance = Object.assign({ soundpad:false, Soundboard:false, loop:false }, s.audioBalance);
       if (s.spTransition){
         Object.assign(settings.spTransition, s.spTransition);
         settings.spTransition.stopFade = clamp(settings.spTransition.stopFade || 10, 1, 20);
@@ -5467,7 +5613,7 @@ function restoreSettings(){
       sbApplyArming(); renderSPOctave(); sbUpdateIndicators();
       if (Array.isArray(s.padShortcuts) && s.padShortcuts.length === DRUM_PAD_COUNT) padShortcuts = s.padShortcuts.slice();
       if (s.queueTransition){
-        ['loop','music'].forEach(function(k){
+        ['loop'].forEach(function(k){
           if (s.queueTransition[k]) Object.assign(queueTransition[k], s.queueTransition[k]);
         });
       }
@@ -5535,7 +5681,6 @@ function restoreMediaList(kind){
   });
 }
 function restoreLoopPads(){ return restoreMediaList('loop'); }
-function restoreMusicPads(){ return restoreMediaList('music'); }
 function restoreMixSettings(){
   return storageGet('mix-settings', false).then(function(raw){
     if (!raw) return;
@@ -5642,7 +5787,7 @@ function restoreMixSettings(){
 }
 function restoreAllState(){
   if (!hasStorage) return Promise.resolve();
-  return Promise.all([restoreSettings(), restoreSoundPads(), restoreDrumPads(), restoreLoopPads(), restoreMusicPads(), restoreMixSettings(), refreshPresetDropdown()]);
+  return Promise.all([restoreSettings(), restoreSoundPads(), restoreDrumPads(), restoreLoopPads(), restoreMixSettings(), refreshPresetDropdown()]);
 }
 function clearAllSavedData(){
   if (!hasStorage) return;
@@ -5823,7 +5968,7 @@ function attemptEnter(){
   // re-fetches them for nothing.
   const soundPadsRestoredPromise = hasStorage ? restoreSoundPads().catch(function(){}) : Promise.resolve();
   const restorePromise = hasStorage
-    ? Promise.all([restoreSettings(), soundPadsRestoredPromise, sp2Restore(), restoreDrumPads(), restoreLoopPads(), restoreMusicPads(), restoreMixSettings(), refreshPresetDropdown()]).catch(function(){})
+    ? Promise.all([restoreSettings(), soundPadsRestoredPromise, sp2Restore(), restoreDrumPads(), restoreLoopPads(), restoreMixSettings(), refreshPresetDropdown()]).catch(function(){})
     : Promise.resolve();
   // Start fetching every Sound Pad's audio now, in the background, so by the
   // time the person reaches the Sound Pads screen a tap is just instant
@@ -5839,7 +5984,6 @@ function attemptEnter(){
     refreshAllUI();
     renderSoundPadsUI();
     initQueuePanel('loop');
-    initQueuePanel('music');
     document.getElementById('intro-screen').classList.add('hide');
     document.getElementById('app').classList.add('show');
     document.getElementById('app').classList.add('has-now-playing');
@@ -6010,7 +6154,7 @@ function sp2Stop(k,fade){
   if(pause)k.paused=(k.paused||[]).concat(k.voices);
   k.voices=[]; sp2Vis(k);
 }
-function sp2StopAll(fade){Object.keys(sp2.keys).forEach(function(c){sp2Stop(sp2.keys[c],fade!=null?fade:0.04);});}
+function sp2StopAll(fade){plHalt();Object.keys(sp2.keys).forEach(function(c){sp2Stop(sp2.keys[c],fade!=null?fade:0.04);});}
 function sp2Mix(inp,fx,wet){
   const o=ctx.createGain(),d=ctx.createGain(),w=ctx.createGain(); d.gain.value=1-wet; w.gain.value=wet;
   inp.connect(d);d.connect(o);inp.connect(fx);fx.connect(w);w.connect(o); return o;
@@ -6059,6 +6203,366 @@ function sp2Play(code,shift){
   k.voices.push(v); sp2Vis(k);
   sp2Log((SP2_CODES[code]||code)+' \u25B6 '+(k.name||k.fileName));
 }
+/* ===== TIMED PLAYLIST =====
+   Press "Playlist", then just tap keys (keyboard or on-screen) — each key that has a song on it
+   is added to the list. Pick how long it should run (any hours / minutes / seconds) and how it
+   ends when the time is up: fade out, hard cut, let the song finish, or fade across the rest of
+   the song. A small countdown shows the time left. */
+const PL_CURVES=[['smooth','Smooth (natural)'],['linear','Linear'],['fast','Quick drop, long tail'],['slow','Holds, then drops'],['s','S-curve']];
+const PL_ENDS=[['fade','Fade out'],['cut','Hard cut'],['finish','Let the current song finish'],['rest','Fade through the rest of the song']];
+const PL_PRESETS=[[10,'10 min'],[20,'20 min'],[30,'30 min'],[45,'45 min'],[60,'1 hr'],[90,'1.5 hr'],[120,'2 hr']];
+const pl={open:false,build:false,keys:[],h:0,m:30,s:0,endStyle:'fade',fadeLen:8,curve:'smooth',fadeTiming:'end',repeat:true,shuffle:false,xfade:0,
+  running:false,ending:false,endsAt:0,t0:0,limit:0,order:[],ptr:0,cur:null,live:[],noMore:false,timer:null,msg:'',msgTimer:null};
+function plTotal(){return Math.max(1,Math.round(pl.h*3600+pl.m*60+pl.s));}
+function plSetTotal(sec){sec=Math.max(1,Math.round(sec));pl.h=Math.floor(sec/3600);pl.m=Math.floor(sec%3600/60);pl.s=sec%60;plSave();}
+function plFmt(sec){
+  sec=Math.max(0,Math.ceil(sec-0.0001)); const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;
+  return h?(h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s):(m+':'+(s<10?'0':'')+s);
+}
+function plValid(code){const k=sp2.keys[code];return !!(k&&k.buffer);}
+function plKeyLen(k){
+  const end=(k.te&&k.te>k.ts)?k.te:k.buffer.duration;
+  return Math.max(0.05,(end-(k.ts||0))/Math.max(0.05,(k.speed||100)/100));
+}
+const plSave=debounce(function(){
+  storageSet('sp2-playlist',{keys:pl.keys,h:pl.h,m:pl.m,s:pl.s,endStyle:pl.endStyle,fadeLen:pl.fadeLen,curve:pl.curve,fadeTiming:pl.fadeTiming,repeat:pl.repeat,shuffle:pl.shuffle,xfade:pl.xfade},false);
+},400);
+function plRestore(){
+  return storageGet('sp2-playlist',false).then(function(raw){
+    if(!raw)return; let o; try{o=JSON.parse(raw);}catch(e){return;}
+    ['h','m','s','fadeLen','xfade'].forEach(function(p){if(typeof o[p]==='number'&&isFinite(o[p]))pl[p]=Math.max(0,o[p]);});
+    if(PL_ENDS.some(function(x){return x[0]===o.endStyle;}))pl.endStyle=o.endStyle;
+    if(PL_CURVES.some(function(x){return x[0]===o.curve;}))pl.curve=o.curve;
+    if(o.fadeTiming==='end'||o.fadeTiming==='start')pl.fadeTiming=o.fadeTiming;
+    if(typeof o.repeat==='boolean')pl.repeat=o.repeat;
+    if(typeof o.shuffle==='boolean')pl.shuffle=o.shuffle;
+    if(Array.isArray(o.keys))pl.keys=o.keys.filter(function(c){return SP2_CODES[c];});
+    if(pl.keys.length)pl.open=true;
+    plRender();
+  }).catch(function(){});
+}
+function plFlash(msg){
+  pl.msg=msg; const e=document.getElementById('pl-msg'); if(e)e.textContent=msg;
+  clearTimeout(pl.msgTimer);
+  pl.msgTimer=setTimeout(function(){pl.msg='';const x=document.getElementById('pl-msg');if(x)plMsgDefault(x);},3500);
+}
+function plMsgDefault(e){
+  e.className='pl-msg'+(pl.build?' building':'');
+  e.textContent=pl.msg||(pl.build?'Building \u2014 tap any key that has a song to add it (it won\u2019t play). Press Done when finished.':
+    (pl.keys.length?'':'Press \u201CBuild\u201D, then tap the keys whose songs you want \u2014 no need to pick songs by hand.'));
+}
+
+/* ---- building ---- */
+function plAdd(code){
+  const k=sp2.keys[code];
+  if(!k||!k.buffer){plFlash((SP2_CODES[code]||code)+' has no song on it');return;}
+  pl.keys.push(code); plSave();
+  if(k.el){k.el.classList.remove('pl-flash');void k.el.offsetWidth;k.el.classList.add('pl-flash');}
+  plRender(); plFlash('Added '+(SP2_CODES[code]||code)+' \u2014 '+(k.name||k.fileName)+'  (#'+pl.keys.length+')');
+}
+function plToggleBuild(){
+  if(pl.running){plFlash('Playlist is running \u2014 stop it to edit the list');return;}
+  if(!pl.open){pl.open=true;pl.build=true;}else pl.build=!pl.build;
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+  plRender();
+}
+
+/* ---- fades ---- */
+function plCurveVal(name,x){ // gain multiplier, 1 -> 0
+  switch(name){
+    case 'linear':return 1-x;
+    case 'fast':return Math.pow(1-x,3);
+    case 'slow':return 1-Math.pow(x,3);
+    case 's':return 0.5*(1+Math.cos(Math.PI*x));
+    default:return Math.cos(x*Math.PI/2);
+  }
+}
+function plFadeRec(r,dur,curve){
+  if(!r||r.fading)return; r.fading=true;
+  const g=r.v&&r.v.g&&r.v.g.gain; dur=Math.max(dur,0.02);
+  if(!g){if(r.v)r.v.kill();return;}
+  const t=ctx.currentTime;
+  try{
+    const cur=Math.max(g.value,0.0001); g.cancelScheduledValues(t); g.setValueAtTime(cur,t);
+    const N=96,a=new Float32Array(N); for(let i=0;i<N;i++)a[i]=cur*plCurveVal(curve,i/(N-1)); a[N-1]=0;
+    g.setValueCurveAtTime(a,t+0.001,dur);
+  }catch(e){}
+  setTimeout(function(){r.v.kill();},dur*1000+90);
+}
+function plCutRec(r){plFadeRec(r,0.015,'linear');}
+function plFadeInRec(r,dur){
+  const g=r.v&&r.v.g&&r.v.g.gain; if(!g)return; const t=ctx.currentTime, lvl=Math.max(r.k.vol/100*sp2.master,0.0001);
+  try{
+    g.cancelScheduledValues(t); g.setValueAtTime(0,t);
+    const N=96,a=new Float32Array(N); for(let i=0;i<N;i++)a[i]=lvl*Math.sin(i/(N-1)*Math.PI/2);
+    g.setValueCurveAtTime(a,t+0.001,Math.max(dur,0.02));
+  }catch(e){}
+}
+
+/* ---- playback ---- */
+function plMakeOrder(){
+  const idx=[]; pl.keys.forEach(function(c,i){if(plValid(c))idx.push(i);});
+  if(pl.shuffle)for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=idx[i];idx[i]=idx[j];idx[j]=t;}
+  pl.order=idx; pl.ptr=0;
+}
+function plVoiceStart(code){
+  const k=sp2.keys[code]; if(!k||!k.buffer||!ctx)return null;
+  (k.paused||[]).forEach(function(v){v.kill();}); k.paused=[];
+  const wl=k.loop,wp=k.prio,wm=k.mode;
+  k.loop=false; k.prio='normal'; k.mode='oneshot';   // play once, never toggle / steal other voices
+  const n=k.voices.length; sp2Play(code,false);
+  k.loop=wl; k.prio=wp; k.mode=wm;
+  if(k.voices.length<=n)return null;
+  const v=k.voices[k.voices.length-1], now=ctx.currentTime;
+  const rec={code:code,k:k,v:v,fading:false,endAt:(v.endAt>now)?v.endAt:now+Math.max(0.5,plKeyLen(k))};
+  pl.live.push(rec); return rec;
+}
+function plAdvance(){
+  let guard=0;
+  while(true){
+    if(pl.ptr>=pl.order.length){
+      if(!pl.repeat||guard>0)return null;
+      plMakeOrder(); guard++; if(!pl.order.length)return null;
+    }
+    const code=pl.keys[pl.order[pl.ptr++]];
+    if(!plValid(code))continue;
+    const r=plVoiceStart(code); if(r){r.chipIdx=pl.order[pl.ptr-1];return r;}
+  }
+}
+function plAlive(r){return !!(r&&r.k.voices.indexOf(r.v)!==-1);}
+function plStart(){
+  if(pl.running)return;
+  if(!pl.keys.some(plValid)){plFlash('Add at least one song first \u2014 press Build, then tap keys');return;}
+  ensureAudio(); if(!ctx)return;
+  pl.build=false; pl.running=true; pl.ending=false; pl.noMore=false; pl.live=[]; pl.cur=null; pl.endsAt=0;
+  pl.t0=ctx.currentTime; pl.limit=pl.t0+plTotal();
+  plMakeOrder();
+  pl.timer=setInterval(plTick,40);
+  plTick(); plRender();
+}
+function plFinish(msg){
+  if(pl.timer){clearInterval(pl.timer);pl.timer=null;}
+  pl.running=false; pl.ending=false; pl.cur=null; pl.live=[];
+  plRender(); plUpdateCount(); plFlash(msg||'Playlist stopped');
+}
+function plHalt(){ if(pl.running)plFinish('Playlist stopped'); }   // called when Stop-All / Esc / Backspace fires
+function plStopNow(){ pl.live.forEach(function(r){plFadeRec(r,0.4,'linear');}); plFinish('Playlist stopped'); }
+function plEndNow(){
+  if(!pl.running||pl.ending)return;
+  pl.limit=ctx.currentTime+((pl.endStyle==='fade'&&pl.fadeTiming==='end')?Math.max(0.05,pl.fadeLen):0);
+  plTick();
+}
+function plSkip(){
+  if(!pl.running||pl.ending)return;
+  const old=pl.cur, nxt=plAdvance();
+  if(old)plFadeRec(old,0.4,'smooth');
+  if(!nxt){pl.noMore=true;return;}
+  plFadeInRec(nxt,0.4); pl.cur=nxt;
+}
+function plTick(){
+  if(!pl.running||!ctx)return;
+  const now=ctx.currentTime, left=pl.limit-now, st=pl.endStyle;
+  pl.live=pl.live.filter(plAlive);
+  const cur=pl.cur, curAlive=plAlive(cur)&&!cur.fading;
+
+  if(!pl.ending){
+    if(st==='cut'){
+      if(left<=0){pl.live.forEach(plCutRec);plFinish('Playlist ended (cut)');return;}
+    }else if(st==='fade'){
+      const len=Math.max(0.05,pl.fadeLen), startAt=pl.fadeTiming==='end'?pl.limit-len:pl.limit;
+      if(now>=startAt){
+        const dur=pl.fadeTiming==='end'?Math.max(0.05,Math.min(len,pl.limit-now)):len;
+        pl.ending=true; pl.endsAt=now+dur;
+        pl.live.forEach(function(r){plFadeRec(r,dur,pl.curve);});
+      }
+    }else if(left<=0){
+      pl.ending=true;
+      if(st==='rest'&&curAlive){
+        const dur=Math.max(0.3,cur.endAt-now); pl.endsAt=now+dur;
+        pl.live.forEach(function(r){plFadeRec(r,dur,pl.curve);});
+      }else pl.endsAt=curAlive?cur.endAt:now;
+    }
+  }
+  if(pl.ending){
+    const quiet=pl.live.every(function(r){return r.fading;});
+    if(quiet&&(st==='finish'||now>=pl.endsAt-0.01)){plFinish('Playlist finished');return;}
+    plUpdateCount(); return;
+  }
+
+  if(!pl.noMore){
+    const xf=Math.max(0,pl.xfade);
+    if(!curAlive||cur.endAt-now<=xf+0.05){
+      const nxt=plAdvance();
+      if(!nxt){pl.noMore=true;}
+      else{
+        if(curAlive&&xf>0){const d=Math.max(0.05,Math.min(xf,cur.endAt-now));plFadeRec(cur,d,'smooth');plFadeInRec(nxt,d);}
+        pl.cur=nxt; plHighlight();
+      }
+    }
+  }else if(!curAlive&&pl.live.every(function(r){return r.fading;})){
+    plFinish('Playlist finished \u2014 out of songs'); return;
+  }
+  plUpdateCount();
+}
+
+/* ---- countdown ---- */
+function plUpdateCount(){
+  const now=ctx?ctx.currentTime:0; let txt='', cls='';
+  if(pl.running){
+    if(pl.ending){
+      cls='ending';
+      txt=(pl.endStyle==='finish'?'song ends ':'fading ')+plFmt(pl.endStyle==='finish'&&pl.cur?pl.cur.endAt-now:pl.endsAt-now);
+    }else txt=plFmt(pl.limit-now);
+  }
+  const pill=document.getElementById('pl-pill');
+  if(pill){pill.style.display=pl.running?'inline-flex':'none';pill.className='pl-pill'+(cls?' '+cls:'');pill.textContent='Playlist \u00B7 '+txt;}
+  const c=document.getElementById('pl-count');
+  if(c){c.className='pl-count'+(pl.running?' run':'')+(cls?' '+cls:'');c.textContent=pl.running?txt:('plays '+plFmt(plTotal()));}
+  const bar=document.getElementById('pl-bar-fill');
+  if(bar)bar.style.width=pl.running?Math.min(100,Math.max(0,(now-pl.t0)/Math.max(0.001,pl.limit-pl.t0)*100))+'%':'0%';
+}
+function plHighlight(){
+  document.querySelectorAll('.pl-chip').forEach(function(ch){
+    ch.classList.toggle('now',!!(pl.running&&pl.cur&&String(pl.cur.chipIdx)===ch.getAttribute('data-i')));
+  });
+}
+(function(){
+  const pill=document.getElementById('pl-pill'); if(!pill)return;
+  pill.addEventListener('click',function(){
+    const b=document.querySelector('.nav-tab[data-tab="Soundboard"]'); if(b)b.click();
+    pl.open=true; plRender();
+  });
+})();
+
+/* ---- panel ---- */
+function plSummary(){
+  const valid=pl.keys.filter(plValid); let len=0; valid.forEach(function(c){len+=plKeyLen(sp2.keys[c]);});
+  let s=valid.length+' song'+(valid.length===1?'':'s')+' \u00B7 '+plFmt(len)+' of music \u00B7 set to play '+plFmt(plTotal());
+  if(valid.length&&!pl.repeat&&len<plTotal())s+=' \u2014 will end early (turn on Repeat to fill the time)';
+  return s;
+}
+function plRender(){
+  const btn=document.getElementById('pl-toolbar-btn');
+  if(btn){btn.classList.toggle('on',pl.build);btn.textContent=pl.build?'Playlist \u25CF tap keys':'Playlist';}
+  const root=document.getElementById('sp2-playlist'); if(!root)return;
+  root.innerHTML=''; root.style.display=pl.open?'':'none'; if(!pl.open)return;
+
+  const field=function(label,child){return el('div',{class:'pl-row'},[el('span',{text:label}),child]);};
+  const numIn=function(prop,min,max,step,w,after){
+    const i=el('input',{type:'number',class:'sp2-num',min:String(min),max:String(max),step:String(step),value:String(pl[prop])});
+    if(w)i.style.width=w;
+    i.addEventListener('input',function(){const v=parseFloat(i.value);pl[prop]=isFinite(v)?Math.max(min,v):min;plSave();sum.textContent=plSummary();plUpdateCount();});
+    i.addEventListener('change',function(){if(after)after();});
+    return i;
+  };
+  const selIn=function(opts,prop,rerender){
+    const s=el('select',{class:'sp2-sel'},opts.map(function(o){const op=el('option',{value:o[0],text:o[1]});if(pl[prop]===o[0])op.selected=true;return op;}));
+    s.addEventListener('change',function(){pl[prop]=s.value;plSave();if(rerender)plRender();});
+    return s;
+  };
+  const chk=function(prop,label){
+    const c=el('input',{type:'checkbox'}); c.checked=!!pl[prop];
+    c.addEventListener('change',function(){pl[prop]=c.checked;plSave();sum.textContent=plSummary();});
+    return el('label',{class:'pl-row',style:'cursor:pointer;'},[c,el('span',{text:label})]);
+  };
+  const sum=el('div',{class:'pl-note',text:plSummary()});
+
+  /* header */
+  const head=el('div',{class:'pl-head'},[
+    el('span',{class:'pl-title',text:'Timed Playlist'}),
+    el('span',{class:'pl-count',id:'pl-count',text:''}),
+    el('span',{class:'pl-spacer'})
+  ]);
+  if(!pl.running)head.appendChild(el('button',{class:'toolbar-btn'+(pl.build?' on':''),text:pl.build?'Done':'Build',title:'Tap keys to add their songs',onClick:plToggleBuild}));
+  head.appendChild(el('button',{class:'pl-mini',text:'\u2715',title:'Hide playlist panel',onClick:function(){pl.open=false;if(!pl.running)pl.build=false;plRender();}}));
+  root.appendChild(head);
+  root.appendChild(el('div',{class:'pl-bar'},[el('div',{id:'pl-bar-fill'})]));
+  const msg=el('div',{id:'pl-msg'}); plMsgDefault(msg); root.appendChild(msg);
+
+  /* song list */
+  const list=el('div',{class:'pl-list'});
+  pl.keys.forEach(function(code,i){
+    const k=sp2.keys[code], ok=plValid(code);
+    const chip=el('div',{class:'pl-chip'+(ok?'':' bad')+((pl.running&&pl.cur&&pl.cur.chipIdx===i)?' now':''),'data-i':String(i)},[
+      el('span',{class:'pl-num',text:String(i+1)}),
+      el('span',{class:'pl-keyl',text:SP2_CODES[code]||code}),
+      el('span',{class:'pl-nm',text:ok?(k.name||k.fileName):'(empty key)'}),
+      el('span',{class:'pl-dur',text:ok?fmtTimeShort(plKeyLen(k)):''})
+    ]);
+    if(!pl.running){
+      const mv=function(d){return function(){const j=i+d;if(j<0||j>=pl.keys.length)return;const t=pl.keys[i];pl.keys[i]=pl.keys[j];pl.keys[j]=t;plSave();plRender();};};
+      chip.appendChild(el('button',{class:'pl-mini',text:'\u2039',title:'Move earlier',onClick:mv(-1)}));
+      chip.appendChild(el('button',{class:'pl-mini',text:'\u203A',title:'Move later',onClick:mv(1)}));
+      chip.appendChild(el('button',{class:'pl-mini',text:'\u2715',title:'Remove',onClick:function(){pl.keys.splice(i,1);plSave();plRender();}}));
+    }
+    list.appendChild(chip);
+  });
+  if(pl.keys.length)root.appendChild(list);
+
+  /* settings */
+  const grid=el('div',{class:'pl-grid'});
+
+  // duration
+  const hI=numIn('h',0,99,1,'52px'), mI=numIn('m',0,999,1,'56px'), sI=numIn('s',0,59,1,'52px');
+  const syncDur=function(){hI.value=pl.h;mI.value=pl.m;sI.value=pl.s;sum.textContent=plSummary();plUpdateCount();};
+  const norm=function(){plSetTotal(pl.h*3600+pl.m*60+pl.s);syncDur();};
+  [hI,mI,sI].forEach(function(i){i.addEventListener('change',norm);});
+  const presets=el('div',{class:'pl-presets'},PL_PRESETS.map(function(p){
+    return el('button',{class:'toolbar-btn',text:p[1],onClick:function(){plSetTotal(p[0]*60);syncDur();}});
+  }));
+  grid.appendChild(el('div',{class:'pl-grp'},[
+    el('div',{class:'sp2-gt',text:'Playlist length'}),
+    el('div',{class:'pl-row',style:'margin-top:0;'},[hI,el('span',{text:'h'}),mI,el('span',{text:'min'}),sI,el('span',{text:'s'})]),
+    presets,
+    el('div',{class:'pl-note',text:'Type any length you like \u2014 e.g. 0 h 10 min, or 2 h 30 min.'})
+  ]));
+
+  // playback
+  const xfIn=numIn('xfade',0,30,0.5,'56px');
+  grid.appendChild(el('div',{class:'pl-grp'},[
+    el('div',{class:'sp2-gt',text:'Playback'}),
+    chk('repeat','Repeat the playlist until time is up'),
+    chk('shuffle','Shuffle order'),
+    el('div',{class:'pl-row'},[el('span',{text:'Crossfade between songs'}),xfIn,el('span',{text:'s (0 = none)'})])
+  ]));
+
+  // ending
+  const endKids=[
+    el('div',{class:'sp2-gt',text:'When time is up'}),
+    el('div',{class:'pl-row full',style:'margin-top:0;'},[selIn(PL_ENDS,'endStyle',true)])
+  ];
+  const st=pl.endStyle;
+  if(st==='fade'){
+    endKids.push(el('div',{class:'pl-row'},[el('span',{text:'Fade length'}),numIn('fadeLen',0.1,3600,0.5,'64px'),el('span',{text:'s'})]));
+    endKids.push(el('div',{class:'pl-row full'},[el('span',{text:'Timing'}),selIn([['end','Finish fading at the time limit'],['start','Start fading at the time limit']],'fadeTiming')]));
+  }
+  if(st==='fade'||st==='rest'){
+    endKids.push(el('div',{class:'pl-row full'},[el('span',{text:'Fade shape'}),selIn(PL_CURVES,'curve')]));
+  }
+  endKids.push(el('div',{class:'pl-note',text:{
+    fade:'Works even if the time runs out in the middle of a song.',
+    cut:'Everything stops instantly at the time limit.',
+    finish:'No new songs start after the time limit; whatever is playing plays to its end.',
+    rest:'At the time limit the current song fades out smoothly over whatever it has left.'
+  }[st]}));
+  grid.appendChild(el('div',{class:'pl-grp'},endKids));
+  root.appendChild(grid);
+  root.appendChild(sum);
+
+  /* actions */
+  const act=el('div',{class:'pl-actions',style:'margin-top:8px;'});
+  if(!pl.running){
+    act.appendChild(el('button',{class:'toolbar-btn on',text:'\u25B6 Start playlist',onClick:plStart}));
+    if(pl.keys.length)act.appendChild(el('button',{class:'toolbar-btn',text:'Clear list',onClick:function(){pl.keys=[];plSave();plRender();}}));
+  }else{
+    act.appendChild(el('button',{class:'toolbar-btn',text:'Skip \u203A\u203A',onClick:plSkip}));
+    act.appendChild(el('button',{class:'toolbar-btn',text:'End now (use fade setting)',onClick:plEndNow}));
+    act.appendChild(el('button',{class:'toolbar-btn',text:'\u25A0 Stop',onClick:plStopNow}));
+  }
+  root.appendChild(act);
+  plUpdateCount();
+}
+
 function sp2Load(code,file){
   ensureAudio(); const k=sp2Key(code), r=new FileReader();
   r.onload=function(e){
@@ -6085,7 +6589,7 @@ const sp2Save=debounce(function(){
   });
   storageSet('sp2-meta',meta,false);
 },600);
-function sp2Restore(){return Promise.all([sp2RestoreKeys(),sp2RestoreLib()]).then(function(){sp2Hydrate();sp2CloudRefresh();});}
+function sp2Restore(){return Promise.all([sp2RestoreKeys(),sp2RestoreLib()]).then(function(){sp2Hydrate();sp2CloudRefresh();return plRestore();});}
 function sp2RestoreKeys(){
   return storageGet('sp2-meta',false).then(function(raw){
     if(!raw)return; let m; try{m=JSON.parse(raw);}catch(e){return;}
@@ -6156,7 +6660,6 @@ function sp2Hydrate(){
 }
 function sp2BookItems(){
   const out=[];
-  state.musicPads.forEach(function(p){if(p.buffer)out.push({id:'music:'+p.id,name:p.name,fileName:p.fileName,buffer:p.buffer,raw:p.rawArrayBuffer,tag:'Music',ts:p.trimStart||0,te:(p.trimEnd&&p.trimEnd<p.buffer.duration-0.01)?p.trimEnd:0});});
   state.loopPads.forEach(function(p){if(p.buffer)out.push({id:'loop:'+p.id,name:p.name,fileName:p.fileName,buffer:p.buffer,raw:p.rawArrayBuffer,tag:'Loop',ts:p.trimStart||0,te:(p.trimEnd&&p.trimEnd<p.buffer.duration-0.01)?p.trimEnd:0});});
   sp2.lib.forEach(function(l){out.push({id:'lib:'+l.id,name:l.name,fileName:l.fileName,buffer:l.buffer,raw:l.raw,tag:'Soundbook',ts:0,te:0});});
   Object.keys(sp2.keys).forEach(function(c){const k=sp2.keys[c];if(k.buffer)out.push({id:'key:'+c,name:k.name,fileName:k.fileName,buffer:k.buffer,raw:k.raw,tag:'Key '+SP2_CODES[c],ts:k.ts,te:k.te});});
@@ -6179,7 +6682,7 @@ function sp2RestoreLib(){
 }
 function sp2RenderBook(){
   const root=document.getElementById('sp2-book'); if(!root)return; root.innerHTML='';
-  const search=el('input',{type:'text',class:'sp2-booksearch',placeholder:'Search soundbook \u2014 songs from Music, Loops, your keys & uploads\u2026',value:sp2.bookTerm});
+  const search=el('input',{type:'text',class:'sp2-booksearch',placeholder:'Search soundbook \u2014 songs from Loops, your keys & uploads\u2026',value:sp2.bookTerm});
   const list=el('div',{class:'sp2-booklist'});
   function fill(){
     list.innerHTML=''; const term=sp2.bookTerm.toLowerCase(); let n=0;
@@ -6206,7 +6709,7 @@ function sp2RenderBook(){
       row.addEventListener('click',function(){sp2.armed=sp2.armed===it.id?null:it.id;sp2RenderBook();});
       list.appendChild(row);
     });
-    if(!n)list.appendChild(el('div',{class:'loop-empty-note',text:sp2.bookTerm?'No songs match.':'Nothing here yet \u2014 upload songs in the Music/Loops tabs or use \u201C+ Add songs\u201D.'}));
+    if(!n)list.appendChild(el('div',{class:'loop-empty-note',text:sp2.bookTerm?'No songs match.':'Nothing here yet \u2014 upload songs in the Loops tab or use \u201C+ Add songs\u201D.'}));
   }
   search.addEventListener('input',function(){sp2.bookTerm=search.value;fill();});
   const fin=el('input',{type:'file',accept:'audio/*',multiple:'true',style:'display:none'});
@@ -6253,6 +6756,7 @@ function sp2Rows(layout,kb){
       cell.addEventListener('pointerdown',function(e){
         sp2.sel=d.c;
         if(sp2.armed){const a=sp2.armed;sp2.armed=null;sp2AssignFromLib(d.c,a);return;}
+        if(pl.build){plAdd(d.c);return;}
         if(k.buffer){sp2Play(d.c,e.shiftKey);if(k.mode==='hold')cell._held=true;}
         document.querySelectorAll('.sp2-key.sel').forEach(function(x){x.classList.remove('sel');}); cell.classList.add('sel');
         renderSoundboardPanel();
@@ -6326,7 +6830,8 @@ function renderSoundboard(){
   root.appendChild(el('div',{class:'sp2-toolbar'},[
     T('New',function(){if(!confirm('Clear every key?'))return;sp2StopAll(0.02);sp2.keys={};sp2.sel=null;sp2.midiMap={};
       storageList('sp2-audio:',false).then(function(ks){ks.forEach(function(x){storageDelete(x,false);});});sp2Save();renderSoundboard();}),
-    T('Open keymap',function(){fileIn.click();}),T('Save keymap',sp2Export),fileIn,stop,
+    T('Open keymap',function(){fileIn.click();}),T('Save keymap',sp2Export),fileIn,
+    el('button',{class:'toolbar-btn'+(pl.build?' on':''),id:'pl-toolbar-btn',title:'Build a timed playlist — then just tap keys to add their songs',text:pl.build?'Playlist \u25CF tap keys':'Playlist',onClick:plToggleBuild}),stop,
     el('span',{class:'section-hint',text:'view'}),vm,
     T('background key input',function(){sp2.bg=!sp2.bg;sp2Save();renderSoundboard();},sp2.bg),
     T('activity logging',function(){sp2.logOn=!sp2.logOn;renderSoundboard();},sp2.logOn),
@@ -6335,15 +6840,21 @@ function renderSoundboard(){
     el('span',{class:'sb-key-pill clickable',id:'sp2-keystate',title:'Soundboard keyboard trigger \u2014 change it in Settings',onClick:sbPillClick}),
     mk.el,el('div',{class:'sp2-chan',id:'sp2-chan',text:'channels in use: 0'})
   ]));
+  root.appendChild(el('div',{id:'sp2-playlist',class:'pl-panel'})); plRender();
   const body=el('div',{class:'sp2-body'});
   body.appendChild(sp2Rows(SP2_LAYOUT,el('div',{class:'sp2-kb'})));
   if(sp2.nav)body.appendChild(sp2Rows(SP2_NAV,el('div',{class:'sp2-kb sp2-side'})));
   if(sp2.num)body.appendChild(sp2Rows(SP2_NUM,el('div',{class:'sp2-kb sp2-side'})));
-  root.appendChild(body);
+  // Keyboard + soundbook on the left, the selected key's settings on the right,
+  // so you never have to scroll down to reach them. With no key selected the right
+  // side simply shows its hint and nothing moves.
+  const spLeft=el('div',{class:'sp2-left'}), spRight=el('div',{class:'sp2-right'});
+  spLeft.appendChild(body);
+  if(sp2.logOn)spLeft.appendChild(el('pre',{class:'sp2-log',id:'sp2-log',text:sp2.log.join('\n')}));
+  spLeft.appendChild(el('div',{id:'sp2-book',class:'sp2-book'}));
+  spRight.appendChild(el('div',{id:'sp2-panel'}));
+  root.appendChild(el('div',{class:'sp2-main'},[spLeft,spRight]));
   sp2Fit(); requestAnimationFrame(sp2Fit); if(window.ResizeObserver)new ResizeObserver(sp2Fit).observe(body);
-  if(sp2.logOn)root.appendChild(el('pre',{class:'sp2-log',id:'sp2-log',text:sp2.log.join('\n')}));
-  root.appendChild(el('div',{id:'sp2-panel'}));
-  root.appendChild(el('div',{id:'sp2-book',class:'sp2-book'}));
   renderSoundboardPanel(); sp2Chan(); sp2RenderBook(); sbUpdateIndicators();
 }
 function renderSoundboardPanel(){
@@ -6449,6 +6960,8 @@ document.addEventListener('keydown',function(e){
   // Esc / Backspace are the panic buttons — they work even while locked.
   if(e.code==='Escape'){sp2StopAll(0.04);return;}
   if(e.code==='Backspace'){e.preventDefault();sp2StopAll(2);return;}
+  // Playlist build mode: a key press adds that key's song to the playlist instead of playing it.
+  if(pl.build){ if(e.repeat||!SP2_CODES[e.code])return; e.preventDefault(); plAdd(e.code); return; }
   if(!sbArmed)return;
   if(/^(Numpad|NumLock)/.test(e.code)&&!sp2.num){sp2.num=true;renderSoundboard();}
   if(/^(Insert|Home|End|PageUp|PageDown|Delete)$/.test(e.code)&&!sp2.nav){sp2.nav=true;renderSoundboard();}
@@ -6475,9 +6988,7 @@ renderSoundboardUI();
 sbApplyArming();
 sbUpdateIndicators();
 initMediaListUI('loop');
-initMediaListUI('music');
 renderLoopsUI();
-renderMusicUI();
 initAllMultiviewSplitters();
 startMiniEqAnimationLoop();
 
