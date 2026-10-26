@@ -713,17 +713,17 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 }
 
 /* ============================= SOUNDBOARD: selected-key settings on the right ============================= */
-.sp2-main{ display:grid; grid-template-columns:minmax(0,1fr) 700px; gap:14px; align-items:start; }
+.sp2-main{ display:grid; grid-template-columns:minmax(0,1fr) 440px; gap:14px; align-items:start; }
 .sp2-left{ min-width:0; }
 .sp2-right{ min-width:0; }
 .sp2-right .sp2-info{ margin-top:0; }
-.sp2-right .sp2-ctrls{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); grid-auto-flow:dense; gap:8px; margin-top:8px; }
+.sp2-right .sp2-ctrls{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-flow:dense; gap:8px; margin-top:8px; }
 .sp2-right .sp2-ctrls > .sp2-grp{ min-width:0; }
 .sp2-right .sp2-ctrls > .sp2-grp:nth-child(1),
 .sp2-right .sp2-ctrls > .sp2-grp:nth-child(5){ grid-column:1 / -1; }
 .sp2-right .sp2-gb{ gap:8px 10px; }
 /* on narrower windows there isn't room for keyboard + side panel, so the panel drops underneath */
-@media (max-width:1580px){
+@media (max-width:1480px){
   .sp2-main{ grid-template-columns:minmax(0,1fr); }
 }
 
@@ -756,9 +756,9 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 /* the dim layer on a preview also catches the click, so nothing inside it can be pressed by accident */
 #app:not(.multiview-mode) .app-main > .section.cv-side:not(#section-multiview)::after{
   content:''; position:absolute; inset:0; z-index:60; border-radius:14px;
-  background:rgba(6,6,8,.55); transition:background .3s ease;
+  background:rgba(6,6,8,.18); transition:background .3s ease;
 }
-#app:not(.multiview-mode) .app-main > .section.cv-side:not(#section-multiview):hover::after{ background:rgba(6,6,8,.28); }
+#app:not(.multiview-mode) .app-main > .section.cv-side:not(#section-multiview):hover::after{ background:rgba(6,6,8,0); }
 
 /* ============================= TIMED PLAYLIST ============================= */
 .pl-pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:var(--panel-2); border:1px solid rgba(55,224,140,0.4); color:#bff5d6; font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.06em; white-space:nowrap; cursor:pointer; }
@@ -766,7 +766,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .pl-pill.ending{ color:#ffe0a8; border-color:rgba(255,176,32,0.5); }
 .pl-pill.ending::before{ background:var(--amber); box-shadow:0 0 6px var(--amber); }
 @keyframes plpulse{ 50%{ opacity:0.3; } }
-.pl-panel{ margin-bottom:10px; padding:10px 12px; background:var(--panel); border:1px solid var(--border-strong); border-radius:10px; }
+.pl-panel{ position:relative; margin-bottom:10px; padding:10px 12px; background:var(--panel); border:1px solid var(--border-strong); border-radius:10px; }
 .pl-head{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .pl-title{ font-family:var(--font-display); font-weight:700; font-size:15px; letter-spacing:0.06em; text-transform:uppercase; }
 .pl-count{ font-family:var(--font-mono); font-size:11px; padding:2px 8px; border-radius:999px; background:var(--panel-2); border:1px solid var(--border-strong); color:var(--text-muted); }
@@ -777,8 +777,11 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .pl-bar > div{ height:100%; width:0; background:var(--grad-accent); }
 .pl-msg{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); margin:8px 0 6px; min-height:14px; }
 .pl-msg.building{ color:#bff5d6; }
-.pl-list{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
-.pl-chip{ display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 8px; border-radius:8px; background:var(--panel-2); border:1px solid var(--border-strong); font-size:11.5px; max-width:260px; }
+.pl-list{ display:flex; flex-wrap:wrap; align-content:flex-start; gap:6px; margin-bottom:8px; height:92px; overflow-y:auto; padding:2px; }
+.pl-empty{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); padding:6px 4px; }
+.pl-brief{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); margin-bottom:8px; }
+.pl-drawer{ position:absolute; left:0; right:0; top:0; z-index:30; padding:10px 12px; background:var(--panel); border:1px solid var(--border-strong); border-radius:10px; box-shadow:0 18px 40px rgba(0,0,0,0.6); }
+.pl-chip{ display:inline-flex; align-items:center; gap:6px; padding:3px 4px 3px 8px; border-radius:8px; background:var(--panel-2); border:1px solid var(--border-strong); font-size:11.5px; max-width:100%; height:26px; }
 .pl-chip.now{ border-color:var(--green); box-shadow:0 0 0 1px var(--green) inset; }
 .pl-chip.bad{ opacity:0.5; }
 .pl-num{ font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); }
@@ -787,7 +790,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .pl-dur{ font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); }
 .pl-mini{ width:20px; height:20px; padding:0; border-radius:5px; background:transparent; border:1px solid transparent; color:var(--text-muted); font-size:12px; line-height:1; }
 .pl-mini:hover{ color:#fff; border-color:var(--border-strong); }
-.pl-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:8px; margin-bottom:10px; }
+.pl-grid{ display:grid; grid-template-columns:1fr; gap:8px; margin-bottom:6px; }
 .pl-grp{ background:var(--card); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
 .pl-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:6px; font-family:var(--font-mono); font-size:11px; color:var(--text-muted); }
 .pl-row .sp2-num{ width:60px; }
@@ -3870,8 +3873,8 @@ function initAllMultiviewSplitters(){
    Order: Sound Pads · Soundboard · Loops · Mix
 ============================================================ */
 const CV_ORDER = ['soundpads', 'Soundboard', 'loops', 'mix'];
-const CV_MAXW = { soundpads: 1276, Soundboard: 1700, loops: 1276, mix: 1276 };
-const CV_SCALE = 0.4, CV_MIN_SCALE = 0.28;
+const CV_MAXW = { soundpads: 1276, Soundboard: 1440, loops: 1276, mix: 1276 };
+const CV_SCALE = 0.42, CV_MIN_SCALE = 0.3;
 let cvRO = null, cvObserved = null, cvLastW = -1, cvLastNav = 0;
 function cvMain(){ return document.querySelector('.app-main'); }
 function cvSec(key){ return document.getElementById('section-' + key); }
@@ -6211,7 +6214,7 @@ function sp2Play(code,shift){
 const PL_CURVES=[['smooth','Smooth (natural)'],['linear','Linear'],['fast','Quick drop, long tail'],['slow','Holds, then drops'],['s','S-curve']];
 const PL_ENDS=[['fade','Fade out'],['cut','Hard cut'],['finish','Let the current song finish'],['rest','Fade through the rest of the song']];
 const PL_PRESETS=[[10,'10 min'],[20,'20 min'],[30,'30 min'],[45,'45 min'],[60,'1 hr'],[90,'1.5 hr'],[120,'2 hr']];
-const pl={open:false,build:false,keys:[],h:0,m:30,s:0,endStyle:'fade',fadeLen:8,curve:'smooth',fadeTiming:'end',repeat:true,shuffle:false,xfade:0,
+const pl={open:true,opts:false,build:false,keys:[],h:0,m:30,s:0,endStyle:'fade',fadeLen:8,curve:'smooth',fadeTiming:'end',repeat:true,shuffle:false,xfade:0,
   running:false,ending:false,endsAt:0,t0:0,limit:0,order:[],ptr:0,cur:null,live:[],noMore:false,timer:null,msg:'',msgTimer:null};
 function plTotal(){return Math.max(1,Math.round(pl.h*3600+pl.m*60+pl.s));}
 function plSetTotal(sec){sec=Math.max(1,Math.round(sec));pl.h=Math.floor(sec/3600);pl.m=Math.floor(sec%3600/60);pl.s=sec%60;plSave();}
@@ -6237,7 +6240,6 @@ function plRestore(){
     if(typeof o.repeat==='boolean')pl.repeat=o.repeat;
     if(typeof o.shuffle==='boolean')pl.shuffle=o.shuffle;
     if(Array.isArray(o.keys))pl.keys=o.keys.filter(function(c){return SP2_CODES[c];});
-    if(pl.keys.length)pl.open=true;
     plRender();
   }).catch(function(){});
 }
@@ -6262,7 +6264,7 @@ function plAdd(code){
 }
 function plToggleBuild(){
   if(pl.running){plFlash('Playlist is running \u2014 stop it to edit the list');return;}
-  if(!pl.open){pl.open=true;pl.build=true;}else pl.build=!pl.build;
+  pl.build=!pl.build;
   if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
   plRender();
 }
@@ -6430,7 +6432,7 @@ function plHighlight(){
   const pill=document.getElementById('pl-pill'); if(!pill)return;
   pill.addEventListener('click',function(){
     const b=document.querySelector('.nav-tab[data-tab="Soundboard"]'); if(b)b.click();
-    pl.open=true; plRender();
+    plRender();
   });
 })();
 
@@ -6441,46 +6443,52 @@ function plSummary(){
   if(valid.length&&!pl.repeat&&len<plTotal())s+=' \u2014 will end early (turn on Repeat to fill the time)';
   return s;
 }
+function plBrief(){
+  const e=PL_ENDS.filter(function(x){return x[0]===pl.endStyle;})[0];
+  return plFmt(plTotal())+' \u00B7 '+(e?e[1]:'')+(pl.endStyle==='fade'?' '+pl.fadeLen+'s':'')+' \u00B7 '+pl.keys.length+' song'+(pl.keys.length===1?'':'s');
+}
 function plRender(){
   const btn=document.getElementById('pl-toolbar-btn');
   if(btn){btn.classList.toggle('on',pl.build);btn.textContent=pl.build?'Playlist \u25CF tap keys':'Playlist';}
   const root=document.getElementById('sp2-playlist'); if(!root)return;
-  root.innerHTML=''; root.style.display=pl.open?'':'none'; if(!pl.open)return;
+  root.innerHTML='';
 
-  const field=function(label,child){return el('div',{class:'pl-row'},[el('span',{text:label}),child]);};
   const numIn=function(prop,min,max,step,w,after){
     const i=el('input',{type:'number',class:'sp2-num',min:String(min),max:String(max),step:String(step),value:String(pl[prop])});
     if(w)i.style.width=w;
-    i.addEventListener('input',function(){const v=parseFloat(i.value);pl[prop]=isFinite(v)?Math.max(min,v):min;plSave();sum.textContent=plSummary();plUpdateCount();});
+    i.addEventListener('input',function(){const v=parseFloat(i.value);pl[prop]=isFinite(v)?Math.max(min,v):min;plSave();refreshInfo();plUpdateCount();});
     i.addEventListener('change',function(){if(after)after();});
     return i;
   };
   const selIn=function(opts,prop,rerender){
     const s=el('select',{class:'sp2-sel'},opts.map(function(o){const op=el('option',{value:o[0],text:o[1]});if(pl[prop]===o[0])op.selected=true;return op;}));
-    s.addEventListener('change',function(){pl[prop]=s.value;plSave();if(rerender)plRender();});
+    s.addEventListener('change',function(){pl[prop]=s.value;plSave();if(rerender)plRender();else refreshInfo();});
     return s;
   };
   const chk=function(prop,label){
     const c=el('input',{type:'checkbox'}); c.checked=!!pl[prop];
-    c.addEventListener('change',function(){pl[prop]=c.checked;plSave();sum.textContent=plSummary();});
+    c.addEventListener('change',function(){pl[prop]=c.checked;plSave();refreshInfo();});
     return el('label',{class:'pl-row',style:'cursor:pointer;'},[c,el('span',{text:label})]);
   };
+  const brief=el('div',{class:'pl-brief',text:plBrief()});
   const sum=el('div',{class:'pl-note',text:plSummary()});
+  function refreshInfo(){brief.textContent=plBrief();sum.textContent=plSummary();}
 
   /* header */
   const head=el('div',{class:'pl-head'},[
-    el('span',{class:'pl-title',text:'Timed Playlist'}),
+    el('span',{class:'pl-title',text:'Playlist'}),
     el('span',{class:'pl-count',id:'pl-count',text:''}),
     el('span',{class:'pl-spacer'})
   ]);
   if(!pl.running)head.appendChild(el('button',{class:'toolbar-btn'+(pl.build?' on':''),text:pl.build?'Done':'Build',title:'Tap keys to add their songs',onClick:plToggleBuild}));
-  head.appendChild(el('button',{class:'pl-mini',text:'\u2715',title:'Hide playlist panel',onClick:function(){pl.open=false;if(!pl.running)pl.build=false;plRender();}}));
+  head.appendChild(el('button',{class:'toolbar-btn'+(pl.opts?' on':''),text:'Options '+(pl.opts?'\u25B4':'\u25BE'),title:'Length, fade and playback options',onClick:function(){pl.opts=!pl.opts;plRender();}}));
   root.appendChild(head);
   root.appendChild(el('div',{class:'pl-bar'},[el('div',{id:'pl-bar-fill'})]));
   const msg=el('div',{id:'pl-msg'}); plMsgDefault(msg); root.appendChild(msg);
 
-  /* song list */
+  /* song list — fixed height, scrolls, so the panel never changes size */
   const list=el('div',{class:'pl-list'});
+  if(!pl.keys.length)list.appendChild(el('div',{class:'pl-empty',text:'No songs yet'}));
   pl.keys.forEach(function(code,i){
     const k=sp2.keys[code], ok=plValid(code);
     const chip=el('div',{class:'pl-chip'+(ok?'':' bad')+((pl.running&&pl.cur&&pl.cur.chipIdx===i)?' now':''),'data-i':String(i)},[
@@ -6497,69 +6505,67 @@ function plRender(){
     }
     list.appendChild(chip);
   });
-  if(pl.keys.length)root.appendChild(list);
-
-  /* settings */
-  const grid=el('div',{class:'pl-grid'});
-
-  // duration
-  const hI=numIn('h',0,99,1,'52px'), mI=numIn('m',0,999,1,'56px'), sI=numIn('s',0,59,1,'52px');
-  const syncDur=function(){hI.value=pl.h;mI.value=pl.m;sI.value=pl.s;sum.textContent=plSummary();plUpdateCount();};
-  const norm=function(){plSetTotal(pl.h*3600+pl.m*60+pl.s);syncDur();};
-  [hI,mI,sI].forEach(function(i){i.addEventListener('change',norm);});
-  const presets=el('div',{class:'pl-presets'},PL_PRESETS.map(function(p){
-    return el('button',{class:'toolbar-btn',text:p[1],onClick:function(){plSetTotal(p[0]*60);syncDur();}});
-  }));
-  grid.appendChild(el('div',{class:'pl-grp'},[
-    el('div',{class:'sp2-gt',text:'Playlist length'}),
-    el('div',{class:'pl-row',style:'margin-top:0;'},[hI,el('span',{text:'h'}),mI,el('span',{text:'min'}),sI,el('span',{text:'s'})]),
-    presets,
-    el('div',{class:'pl-note',text:'Type any length you like \u2014 e.g. 0 h 10 min, or 2 h 30 min.'})
-  ]));
-
-  // playback
-  const xfIn=numIn('xfade',0,30,0.5,'56px');
-  grid.appendChild(el('div',{class:'pl-grp'},[
-    el('div',{class:'sp2-gt',text:'Playback'}),
-    chk('repeat','Repeat the playlist until time is up'),
-    chk('shuffle','Shuffle order'),
-    el('div',{class:'pl-row'},[el('span',{text:'Crossfade between songs'}),xfIn,el('span',{text:'s (0 = none)'})])
-  ]));
-
-  // ending
-  const endKids=[
-    el('div',{class:'sp2-gt',text:'When time is up'}),
-    el('div',{class:'pl-row full',style:'margin-top:0;'},[selIn(PL_ENDS,'endStyle',true)])
-  ];
-  const st=pl.endStyle;
-  if(st==='fade'){
-    endKids.push(el('div',{class:'pl-row'},[el('span',{text:'Fade length'}),numIn('fadeLen',0.1,3600,0.5,'64px'),el('span',{text:'s'})]));
-    endKids.push(el('div',{class:'pl-row full'},[el('span',{text:'Timing'}),selIn([['end','Finish fading at the time limit'],['start','Start fading at the time limit']],'fadeTiming')]));
-  }
-  if(st==='fade'||st==='rest'){
-    endKids.push(el('div',{class:'pl-row full'},[el('span',{text:'Fade shape'}),selIn(PL_CURVES,'curve')]));
-  }
-  endKids.push(el('div',{class:'pl-note',text:{
-    fade:'Works even if the time runs out in the middle of a song.',
-    cut:'Everything stops instantly at the time limit.',
-    finish:'No new songs start after the time limit; whatever is playing plays to its end.',
-    rest:'At the time limit the current song fades out smoothly over whatever it has left.'
-  }[st]}));
-  grid.appendChild(el('div',{class:'pl-grp'},endKids));
-  root.appendChild(grid);
-  root.appendChild(sum);
+  root.appendChild(list);
+  root.appendChild(brief);
 
   /* actions */
-  const act=el('div',{class:'pl-actions',style:'margin-top:8px;'});
+  const act=el('div',{class:'pl-actions'});
   if(!pl.running){
-    act.appendChild(el('button',{class:'toolbar-btn on',text:'\u25B6 Start playlist',onClick:plStart}));
-    if(pl.keys.length)act.appendChild(el('button',{class:'toolbar-btn',text:'Clear list',onClick:function(){pl.keys=[];plSave();plRender();}}));
+    act.appendChild(el('button',{class:'toolbar-btn on',text:'\u25B6 Start',onClick:plStart}));
+    if(pl.keys.length)act.appendChild(el('button',{class:'toolbar-btn',text:'Clear',onClick:function(){pl.keys=[];plSave();plRender();}}));
   }else{
     act.appendChild(el('button',{class:'toolbar-btn',text:'Skip \u203A\u203A',onClick:plSkip}));
-    act.appendChild(el('button',{class:'toolbar-btn',text:'End now (use fade setting)',onClick:plEndNow}));
+    act.appendChild(el('button',{class:'toolbar-btn',text:'End now',title:'Ends using your fade / cut setting',onClick:plEndNow}));
     act.appendChild(el('button',{class:'toolbar-btn',text:'\u25A0 Stop',onClick:plStopNow}));
   }
   root.appendChild(act);
+
+  /* options drawer — floats over the settings below, so nothing underneath moves */
+  if(pl.opts){
+    const hI=numIn('h',0,99,1,'52px'), mI=numIn('m',0,999,1,'56px'), sI=numIn('s',0,59,1,'52px');
+    const syncDur=function(){hI.value=pl.h;mI.value=pl.m;sI.value=pl.s;refreshInfo();plUpdateCount();};
+    const norm=function(){plSetTotal(pl.h*3600+pl.m*60+pl.s);syncDur();};
+    [hI,mI,sI].forEach(function(i){i.addEventListener('change',norm);});
+    const presets=el('div',{class:'pl-presets'},PL_PRESETS.map(function(p){
+      return el('button',{class:'toolbar-btn',text:p[1],onClick:function(){plSetTotal(p[0]*60);syncDur();}});
+    }));
+    const grid=el('div',{class:'pl-grid'});
+    grid.appendChild(el('div',{class:'pl-grp'},[
+      el('div',{class:'sp2-gt',text:'Playlist length'}),
+      el('div',{class:'pl-row',style:'margin-top:0;'},[hI,el('span',{text:'h'}),mI,el('span',{text:'min'}),sI,el('span',{text:'s'})]),
+      presets,
+      el('div',{class:'pl-note',text:'Type any length \u2014 e.g. 0 h 10 min, or 2 h 30 min.'})
+    ]));
+    grid.appendChild(el('div',{class:'pl-grp'},[
+      el('div',{class:'sp2-gt',text:'Playback'}),
+      chk('repeat','Repeat the playlist until time is up'),
+      chk('shuffle','Shuffle order'),
+      el('div',{class:'pl-row'},[el('span',{text:'Crossfade between songs'}),numIn('xfade',0,30,0.5,'56px'),el('span',{text:'s (0 = none)'})])
+    ]));
+    const endKids=[
+      el('div',{class:'sp2-gt',text:'When time is up'}),
+      el('div',{class:'pl-row full',style:'margin-top:0;'},[selIn(PL_ENDS,'endStyle',true)])
+    ];
+    const st=pl.endStyle;
+    if(st==='fade'){
+      endKids.push(el('div',{class:'pl-row'},[el('span',{text:'Fade length'}),numIn('fadeLen',0.1,3600,0.5,'64px'),el('span',{text:'s'})]));
+      endKids.push(el('div',{class:'pl-row full'},[el('span',{text:'Timing'}),selIn([['end','Finish fading at the time limit'],['start','Start fading at the time limit']],'fadeTiming')]));
+    }
+    if(st==='fade'||st==='rest'){
+      endKids.push(el('div',{class:'pl-row full'},[el('span',{text:'Fade shape'}),selIn(PL_CURVES,'curve')]));
+    }
+    endKids.push(el('div',{class:'pl-note',text:{
+      fade:'Works even if the time runs out in the middle of a song.',
+      cut:'Everything stops instantly at the time limit.',
+      finish:'No new songs start after the time limit; whatever is playing plays to its end.',
+      rest:'At the time limit the current song fades out smoothly over whatever it has left.'
+    }[st]}));
+    grid.appendChild(el('div',{class:'pl-grp'},endKids));
+    const dh=el('div',{class:'pl-head',style:'margin-bottom:8px;'},[
+      el('span',{class:'pl-title',text:'Playlist options'}),el('span',{class:'pl-spacer'}),
+      el('button',{class:'toolbar-btn on',text:'Done',onClick:function(){pl.opts=false;plRender();}})]);
+    root.appendChild(el('div',{class:'pl-drawer'},[dh,grid,sum]));
+  }
   plUpdateCount();
 }
 
@@ -6840,7 +6846,6 @@ function renderSoundboard(){
     el('span',{class:'sb-key-pill clickable',id:'sp2-keystate',title:'Soundboard keyboard trigger \u2014 change it in Settings',onClick:sbPillClick}),
     mk.el,el('div',{class:'sp2-chan',id:'sp2-chan',text:'channels in use: 0'})
   ]));
-  root.appendChild(el('div',{id:'sp2-playlist',class:'pl-panel'})); plRender();
   const body=el('div',{class:'sp2-body'});
   body.appendChild(sp2Rows(SP2_LAYOUT,el('div',{class:'sp2-kb'})));
   if(sp2.nav)body.appendChild(sp2Rows(SP2_NAV,el('div',{class:'sp2-kb sp2-side'})));
@@ -6852,10 +6857,11 @@ function renderSoundboard(){
   spLeft.appendChild(body);
   if(sp2.logOn)spLeft.appendChild(el('pre',{class:'sp2-log',id:'sp2-log',text:sp2.log.join('\n')}));
   spLeft.appendChild(el('div',{id:'sp2-book',class:'sp2-book'}));
+  spRight.appendChild(el('div',{id:'sp2-playlist',class:'pl-panel'}));
   spRight.appendChild(el('div',{id:'sp2-panel'}));
   root.appendChild(el('div',{class:'sp2-main'},[spLeft,spRight]));
   sp2Fit(); requestAnimationFrame(sp2Fit); if(window.ResizeObserver)new ResizeObserver(sp2Fit).observe(body);
-  renderSoundboardPanel(); sp2Chan(); sp2RenderBook(); sbUpdateIndicators();
+  renderSoundboardPanel(); sp2Chan(); sp2RenderBook(); sbUpdateIndicators(); plRender();
 }
 function renderSoundboardPanel(){
   const wrap=document.getElementById('sp2-panel'); if(!wrap)return; wrap.innerHTML='';
