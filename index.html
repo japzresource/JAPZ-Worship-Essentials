@@ -527,6 +527,51 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 .upload-plus{ font-size:20px; color:var(--text-dim); }
 .app-footer{ text-align:center; padding:20px; font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); }
 
+
+/* ============================= OCTAVE (Sound Pads) ============================= */
+.sp-octave{ display:flex; align-items:center; justify-content:center; gap:8px; margin:-4px auto 16px; font-family:var(--font-mono); }
+.sp-octave-label{ font-size:10.5px; letter-spacing:0.18em; color:var(--text-dim); text-transform:uppercase; }
+.sp-octave-ctl{ display:flex; align-items:center; background:var(--panel); border:1px solid var(--border-strong); border-radius:999px; padding:3px; gap:2px; }
+.sp-octave-step{ width:30px; height:30px; border-radius:50%; background:transparent; border:none; color:var(--text); font-size:17px; font-weight:700; line-height:1; display:flex; align-items:center; justify-content:center; }
+.sp-octave-step:hover:not(:disabled){ background:var(--panel-2); color:var(--accent-glow); }
+.sp-octave-step:disabled{ opacity:0.28; cursor:default; }
+.sp-octave-val{ min-width:62px; height:30px; padding:0 10px; border-radius:999px; background:transparent; border:none; color:var(--text); font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.04em; }
+.sp-octave-val.shifted{ background:var(--grad-accent); color:#fff; }
+.sp-octave-hint{ font-size:10.5px; color:var(--text-dim); min-width:54px; }
+
+/* ============================= SOUNDBOARD KEYBOARD TRIGGER ============================= */
+.sb-key-pill{ display:inline-flex; align-items:center; gap:7px; padding:7px 12px; border-radius:999px; background:var(--panel-2); border:1px solid var(--border-strong); color:var(--text-muted); font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; white-space:nowrap; }
+.sb-key-pill::before{ content:''; width:8px; height:8px; border-radius:50%; background:#6b6972; flex:none; }
+.sb-key-pill.armed{ color:#bff5d6; border-color:rgba(55,224,140,0.45); }
+.sb-key-pill.armed::before{ background:var(--green,#37e08c); box-shadow:0 0 8px var(--green,#37e08c); }
+.sb-key-pill.locked{ color:#ffc9ce; border-color:rgba(255,39,67,0.45); }
+.sb-key-pill.locked::before{ background:var(--accent-glow); }
+.sb-key-pill.clickable{ cursor:pointer; }
+.sb-key-pill.clickable:hover{ border-color:var(--accent); }
+.sp2-key.trigger{ border-color:var(--accent-glow); box-shadow:inset 0 0 0 1px var(--accent-glow); }
+.sb-seg{ display:flex; gap:8px; flex-wrap:wrap; }
+.sb-seg .light-style-btn{ flex:1 1 auto; }
+.sb-field-label{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); letter-spacing:0.12em; text-transform:uppercase; margin:14px 0 8px; }
+.sb-trigger-row.disabled{ opacity:0.4; pointer-events:none; }
+.shortcut-key-btn.wide{ min-width:96px; width:auto; padding:9px 14px; }
+
+/* ============================= ABOUT MODAL ============================= */
+.about-hero{ text-align:center; padding:6px 0 2px; }
+.about-hero .about-name{ font-family:var(--font-display); font-weight:700; font-size:26px; letter-spacing:0.04em; }
+.about-hero .about-name .accent{ color:var(--accent); }
+.about-hero .about-tag{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.24em; color:var(--text-dim); text-transform:uppercase; margin-top:6px; }
+.about-text{ font-size:13.5px; line-height:1.65; color:var(--text-muted); }
+.about-feats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:10px; }
+.about-feat{ background:var(--panel); border:1px solid var(--border-strong); border-radius:10px; padding:11px 13px; }
+.about-feat b{ display:block; font-family:var(--font-display); font-size:13px; letter-spacing:0.04em; color:var(--text); margin-bottom:3px; text-transform:uppercase; }
+.about-feat span{ font-size:12px; line-height:1.5; color:var(--text-dim); }
+.about-credit{ background:var(--panel); border:1px solid var(--border-strong); border-radius:12px; padding:16px 18px; }
+.about-credit .by{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.18em; color:var(--text-dim); text-transform:uppercase; }
+.about-credit .who{ font-family:var(--font-display); font-weight:700; font-size:19px; margin:4px 0 8px; }
+.about-credit .role{ font-size:12.5px; color:var(--text-muted); line-height:1.7; }
+.about-projects{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.about-chip{ padding:6px 12px; border-radius:999px; background:var(--panel-2); border:1px solid var(--border-strong); font-family:var(--font-mono); font-size:11px; color:var(--text); }
+
 /* ============================= MULTIVIEW ============================= */
 #app.multiview-mode{ height:100vh; overflow:hidden; }
 #app.multiview-mode .app-main{ flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding:10px 16px; }
@@ -655,6 +700,40 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
   .loop-row{ flex-wrap:wrap; }
   .key-grid{ gap:8px; }
 }
+
+/* ============================= FIT-TO-SCREEN (no page scrolling) =============================
+   The page itself never scrolls: the app is locked to the viewport and every
+   section sizes itself to the space that's left. Only long lists (loops,
+   music, the Soundboard editor, mixer strips) scroll inside their own panel. */
+html,body{ overflow:hidden; }
+#app.show:not(.multiview-mode){ height:100vh; height:100dvh; min-height:0; overflow:hidden; }
+#app:not(.multiview-mode) .app-main{ min-height:0; overflow:hidden; display:flex; flex-direction:column; padding:12px 22px; max-width:1320px; }
+#app.has-now-playing:not(.multiview-mode) .app-main{ padding-bottom:12px; }
+#app.has-now-playing:not(.multiview-mode){ padding-bottom:var(--np-h,0px); }
+#app:not(.multiview-mode) .app-footer{ display:none; }
+#app:not(.multiview-mode) .main-nav{ padding-top:8px; flex:0 0 auto; }
+#app:not(.multiview-mode) .section.active{ display:flex; flex-direction:column; flex:1; min-height:0; }
+#app:not(.multiview-mode) .section-panel{ flex:1; min-height:0; display:flex; flex-direction:column; padding:14px 18px; overflow:hidden; }
+#app:not(.multiview-mode) .section-heading{ flex:0 0 auto; margin-bottom:10px; }
+#app:not(.multiview-mode) .section-toolbar{ flex:0 0 auto; margin-bottom:10px; }
+#app:not(.multiview-mode) .loop-search{ flex:0 0 auto; }
+/* Sound Pads: the 12 keys fill whatever space is left */
+#app:not(.multiview-mode) .piano-wrap{ flex:1; min-height:0; display:flex; flex-direction:column; max-width:none; width:100%; margin:0; }
+#app:not(.multiview-mode) .mode-toggle{ flex:0 0 auto; margin-bottom:10px; }
+#app:not(.multiview-mode) .sp-octave{ flex:0 0 auto; margin:0 auto 10px; }
+#app:not(.multiview-mode) .key-grid{ flex:1; min-height:0; width:100%; max-width:1100px; grid-template-columns:repeat(6,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:10px; }
+#app:not(.multiview-mode) .key-grid .key-cell{ aspect-ratio:auto; min-height:0; }
+#app:not(.multiview-mode) .sp-filter-panel{ flex:1; min-height:0; overflow-y:auto; }
+@media (max-width:700px){ #app:not(.multiview-mode) .key-grid{ grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-rows:repeat(3,minmax(0,1fr)); gap:8px; } }
+/* Loops / Music */
+#app:not(.multiview-mode) .media-layout{ flex:1; min-height:0; align-items:stretch; }
+#app:not(.multiview-mode) .media-main{ overflow-y:auto; min-height:0; }
+#app:not(.multiview-mode) .media-queue-panel{ min-height:0; max-height:none; overflow-y:auto; }
+/* Soundboard */
+#app:not(.multiview-mode) #sp2-root{ flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; }
+/* Mix */
+#app:not(.multiview-mode) .mix-strips{ flex:1; min-height:0; overflow:auto; padding-bottom:6px; }
+@media (max-width:900px){ #app:not(.multiview-mode) .media-layout{ flex-direction:column; } #app:not(.multiview-mode) .media-queue-panel{ flex:0 0 auto; max-height:40%; } }
 </style>
 </head>
 <body data-light-style="flash">
@@ -703,8 +782,10 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
       <span id="save-indicator"></span>
     </div>
     <div class="header-right">
+      <span class="sb-key-pill clickable" id="sb-key-pill" style="display:none;" title="Soundboard keyboard trigger"></span>
       <button class="header-btn" id="multiview-btn" title="Multiview — see every section at once"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg> Multiview</button>
       <button class="header-btn" id="settings-btn"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"></path></svg> Settings</button>
+      <button class="header-btn" id="about-btn" title="About Worship Essentials"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg> About</button>
     </div>
   </header>
 
@@ -729,6 +810,7 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
           <div class="mode-toggle">
             <div class="mode-toggle-track sp-filter-track" id="sp-filter-row"></div>
           </div>
+          <div class="sp-octave" id="sp-octave-row"></div>
           <div class="key-grid" id="sp-piano"></div>
           <div class="sp-filter-panel" id="sp-filter-panel" style="display:none;">
             <div class="settings-section-title">Key Transition <span style="font-weight:400; text-transform:none; letter-spacing:0;">(what happens when you tap a different key)</span></div>
@@ -966,9 +1048,18 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         <div class="swatch-row" id="light-style-row"></div>
       </div>
       <div class="settings-section">
-        <div class="settings-section-title">Keyboard Shortcuts <span style="font-weight:400; text-transform:none; letter-spacing:0;">(trigger Soundboard pads from your keyboard)</span></div>
-        <div id="shortcut-list"></div>
-        <div class="settings-note" id="shortcut-hint">Click a key, then press any key on your keyboard to reassign it.</div>
+        <div class="settings-section-title">Soundboard Keyboard <span style="font-weight:400; text-transform:none; letter-spacing:0;">(when your keyboard plays Soundboard sounds)</span></div>
+        <div class="sb-field-label" style="margin-top:0;">Where it works</div>
+        <div class="sb-seg" id="sb-scope-row"></div>
+        <div class="settings-note" id="sb-scope-desc"></div>
+        <div class="sb-field-label">When it's active</div>
+        <div class="sb-seg" id="sb-arming-row"></div>
+        <div class="settings-note" id="sb-arming-desc"></div>
+        <div class="shortcut-row sb-trigger-row" id="sb-trigger-row" style="margin-top:10px;">
+          <span class="shortcut-row-name">Trigger key</span>
+          <button class="shortcut-key-btn wide" id="sb-trigger-btn"></button>
+        </div>
+        <div class="settings-note" id="sb-trigger-hint">Click the trigger key, then press any key to reassign it. Esc always stops all Soundboard sounds on the Soundboard page.</div>
       </div>
       <div class="settings-section">
         <div class="settings-section-title">Audio Balance <span style="font-weight:400; text-transform:none; letter-spacing:0;">(auto-level so uploads don't jump in volume)</span></div>
@@ -979,6 +1070,42 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
         <div class="settings-section-title">Saved Data</div>
         <div class="settings-note" id="storage-status-note">Checking storage availability…</div>
         <button class="settings-danger-btn" id="settings-clear-data-btn" style="width:100%; margin-top:10px;">Clear All Saved Sounds &amp; Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= ABOUT MODAL ============================= -->
+<div class="modal-overlay" id="about-modal">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div class="modal-title-static">About</div>
+      <button class="modal-close-btn" id="about-close"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="about-hero">
+        <div class="about-name">Worship <span class="accent">Essentials</span></div>
+        <div class="about-tag">Sound Pads · Soundboard · Loops · Mix</div>
+      </div>
+      <div class="about-text">
+        <b style="color:var(--text);">What is Worship Essentials?</b><br>
+        Worship Essentials is a live sound toolkit for worship teams and media crews. It puts ambient pads, one-tap sound effects, backing loops, full songs and a proper mixer into one screen, so a single person can run the atmosphere of a service from a laptop, tablet or phone. It runs entirely in your browser, and your sounds and settings are saved to your own workspace.
+      </div>
+      <div class="about-feats">
+        <div class="about-feat"><b>Sound Pads</b><span>Twelve chromatic keys of ambient pads with seamless looping, smooth key-to-key transitions and an octave shift.</span></div>
+        <div class="about-feat"><b>Soundboard</b><span>Every keyboard key is a pad. Assign any audio file to a key and trigger it with your keyboard.</span></div>
+        <div class="about-feat"><b>Loops &amp; Music</b><span>Backing tracks and full songs with queues, trimming, fades, tempo and pitch control.</span></div>
+        <div class="about-feat"><b>Mix</b><span>Per-channel EQ, compression, delay, reverb, panning, faders and extra output sends.</span></div>
+      </div>
+      <div class="about-credit">
+        <div class="by">Created by</div>
+        <div class="who">JAPZ James · 2026</div>
+        <div class="role">Owner of Crélinc Production Company<br>Head of IV PRODTECH and Patience United</div>
+        <div class="about-projects">
+          <span class="about-chip">Worship Essentials</span>
+          <span class="about-chip">Prodtech Comms</span>
+        </div>
+        <div class="settings-note" style="margin-top:12px;">Projects in 2026</div>
       </div>
     </div>
   </div>
@@ -1288,9 +1415,9 @@ let currentEditingPad = null;
 let currentEditingKind = null; // 'drum' | 'loop'
 let currentEQChannelKey = null;
 let editModeOn = false;
-const DEFAULT_PAD_SHORTCUTS = ['1','2','3','4','q','w','e','r','a','s','d','f'];
-let padShortcuts = DEFAULT_PAD_SHORTCUTS.slice();
-let listeningForShortcutIdx = null;
+// Soundboard keyboard trigger runtime state (the saved choices live in settings.sbKeys)
+let sbArmed = true;            // is the keyboard currently allowed to fire Soundboard sounds?
+let sbListeningTrigger = false; // Settings is waiting for the next key press to become the trigger
 
 const state = {
   channels: {},
@@ -1313,6 +1440,12 @@ const settings = {
   accentGlow: '#d81f2e',
   flash: '#b3121f',
   lightStyle: 'flash',
+  spOctave: 0,               // Sound Pads octave shift, -2 .. +2 (each step doubles / halves the pitch)
+  sbKeys: {
+    scope: 'page',           // 'page' = only while the Soundboard (or Multiview) is on screen | 'anywhere' = on every page
+    arming: 'always',        // 'always' | 'toggle' (tap trigger key to arm / lock) | 'hold' (only while trigger key is held)
+    trigger: 'Backquote'     // KeyboardEvent.code of the trigger key
+  },
   audioBalance: { soundpad: false, Soundboard: false, loop: false, music: false },
   spTransition: {
     mode: 'crossfade',   // 'crossfade' (overlap) | 'wait' (fade out fully first, then start) | 'cut' (instant)
@@ -1887,7 +2020,49 @@ let activeSPView = 'keys'; // 'keys' (pad grid) | 'filter' (transition settings)
 
 function renderSoundPadsUI(){
   renderSPViewToggle();
+  renderSPOctave();
   renderSoundPadGrid();
+}
+
+/* ---- Octave shift for Sound Pads ------------------------------------
+   Shifts every pad up / down in whole octaves (-2 .. +2). If a key is
+   sounding when the octave changes, it crossfades into the new octave
+   instead of jumping, using the same fade engine as a key change.      */
+function setSPOctave(n){
+  n = clamp(Math.round(n), -2, 2);
+  if (n === settings.spOctave) return;
+  settings.spOctave = n;
+  saveSettings();
+  renderSPOctave();
+  const pad = activeSoundPad;
+  if (pad && pad.isPlaying && pad.buffer && ctx){
+    const f = 1.2, at = ctx.currentTime;
+    fadeOutAndStopSoundPad(pad, f, at);   // old octave fades out...
+    clearPadTimers(pad);
+    playSoundPadGeneration(pad, f, at);   // ...while the new octave fades in
+    pad.isPlaying = true;
+    activeSoundPad = pad;
+    updateSoundPadVisual(pad, f);
+  }
+}
+function renderSPOctave(){
+  const row = document.getElementById('sp-octave-row');
+  if (!row) return;
+  const o = settings.spOctave || 0;
+  row.innerHTML = '';
+  const down = el('button', { class: 'sp-octave-step', text: '\u2212', title: 'Octave down', onClick: function(){ setSPOctave(settings.spOctave - 1); } });
+  const up = el('button', { class: 'sp-octave-step', text: '+', title: 'Octave up', onClick: function(){ setSPOctave(settings.spOctave + 1); } });
+  if (o <= -2) down.disabled = true;
+  if (o >= 2) up.disabled = true;
+  const val = el('button', {
+    class: 'sp-octave-val' + (o !== 0 ? ' shifted' : ''),
+    text: o === 0 ? 'Octave 0' : (o > 0 ? '+' + o : '\u2212' + Math.abs(o)),
+    title: 'Tap to reset to the original octave',
+    onClick: function(){ setSPOctave(0); }
+  });
+  row.appendChild(el('span', { class: 'sp-octave-label', text: 'Octave' }));
+  row.appendChild(el('div', { class: 'sp-octave-ctl' }, [down, val, up]));
+  row.appendChild(el('span', { class: 'sp-octave-hint', text: o === 0 ? 'original' : ((o > 0 ? '\u00D7' : '\u00F7') + Math.pow(2, Math.abs(o)) + ' pitch') }));
 }
 function renderSoundPadGrid(){
   const wrap = document.getElementById('sp-piano');
@@ -2074,9 +2249,15 @@ function duckOtherBusesForKeyChange(fadeSeconds){
 function playSoundPadGeneration(pad, fadeSeconds, atTime){
   const buffer = pad.buffer;
   if (!buffer) return;
-  const dur = buffer.duration;
+  // Octave shift: each octave doubles / halves the playback rate. Every
+  // timing below (loop crossfade, next-generation schedule, stop timer) is
+  // based on `dur`, so using the real, rate-adjusted duration here keeps the
+  // seamless looping gapless at any octave.
+  const octRate = Math.pow(2, settings.spOctave || 0);
+  const dur = buffer.duration / octRate;
   const src = ctx.createBufferSource();
   src.buffer = buffer;
+  src.playbackRate.value = octRate;
   const gainNode = ctx.createGain();
   src.connect(gainNode);
   gainNode.connect(state.channels.soundpad.input);
@@ -2711,9 +2892,7 @@ function buildDrumPadEl(pad){
       else openPadEditor(pad, 'drum');
     }
   });
-  const padIdx = state.drumPads.indexOf(pad);
-  const shortcutKey = padIdx !== -1 ? padShortcuts[padIdx] : null;
-  const shortcutBadge = shortcutKey ? el('div', { class: 'pad-shortcut-badge', text: shortcutKey.toUpperCase(), title: 'Keyboard shortcut: ' + shortcutKey.toUpperCase() }) : null;
+  const shortcutBadge = null; // per-pad shortcut badges were retired — the Soundboard keyboard replaces them
 
   const wrap = el('div', { class: classes.join(' '), style: '--pad-hue:' + hue + ';', onClick: function(){
     if (pad.loading) return;
@@ -2739,35 +2918,6 @@ document.getElementById('edit-mode-btn').addEventListener('click', function(){
   this.classList.toggle('on', editModeOn);
 });
 
-/* ============================================================
-   KEYBOARD SHORTCUTS — trigger Soundboard pads from the keyboard.
-   Remappable in Settings. Ignored while typing in a text field, a
-   modal is open capturing input, or a shortcut is being reassigned.
-============================================================ */
-document.addEventListener('keydown', function(e){
-  return; // old drum-pad shortcuts replaced by Soundboard
-  const tag = e.target && e.target.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (listeningForShortcutIdx !== null) return; // settings UI handles capture itself
-  if (e.repeat) return; // holding the key down shouldn't retrigger on every OS auto-repeat tick
-  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-  const idx = padShortcuts.indexOf(key);
-  if (idx === -1) return;
-  const pad = state.drumPads[idx];
-  if (!pad || pad.loading) return;
-  e.preventDefault();
-  if (!pad.buffer){ openFilePicker(pad, function(){ scheduleDrumPadSave(pad); }); return; }
-  if (editModeOn){ if (pad.el) flashEl(pad.el); openPadEditor(pad, 'drum'); return; }
-  // Sound first, everything else after: the flash and the autosave are
-  // both purely cosmetic/background bookkeeping, so they're pushed past
-  // the trigger call instead of running before it — every bit of DOM or
-  // storage work done ahead of triggerEditablePad is time added between
-  // the key press and the first sample actually reaching the output.
-  triggerEditablePad(pad, 'Soundboard', false);
-  if (pad.el) flashEl(pad.el);
-  scheduleDrumPadSave(pad);
-});
 
 
 /* ============================================================
@@ -3747,45 +3897,120 @@ function renderSettingsModal(){
       onClick: function(){ applyLightStyle(opt.id); saveSettings(); renderSettingsModal(); }
     }));
   });
-  renderShortcutList();
+  renderSbKeySettings();
   renderAudioBalanceRow();
   const note = document.getElementById('storage-status-note');
   note.textContent = hasStorage
     ? 'Your sounds, edits, presets and settings are saved automatically in this workspace and will be restored next time you log in. Very large audio files may not be saved due to storage limits — you\u2019ll see a small note on any pad that needs re-uploading.'
     : 'Storage isn\u2019t available in this context, so nothing will be remembered after you close or refresh this page.';
 }
-function renderShortcutList(){
-  const wrap = document.getElementById('shortcut-list');
-  if (!wrap) return;
-  wrap.innerHTML = '';
-  state.drumPads.forEach(function(pad, i){
-    const keyBtn = el('button', { class: 'shortcut-key-btn', text: (padShortcuts[i] || '\u2014').toUpperCase() });
-    keyBtn.addEventListener('click', function(){
-      if (listeningForShortcutIdx === i){ listeningForShortcutIdx = null; renderShortcutList(); return; }
-      listeningForShortcutIdx = i;
-      renderShortcutList();
-      const freshBtn = document.querySelectorAll('.shortcut-key-btn')[i];
-      if (freshBtn){ freshBtn.textContent = 'Press a key\u2026'; freshBtn.classList.add('listening'); }
-    });
-    wrap.appendChild(el('div', { class: 'shortcut-row' }, [
-      el('span', { class: 'shortcut-row-name', text: pad.name || ('Pad ' + (i + 1)) }),
-      keyBtn
-    ]));
-  });
+/* ============================================================
+   SOUNDBOARD KEYBOARD TRIGGER — decides WHEN the keyboard is allowed to
+   fire Soundboard sounds, so typing / other pages stay untouched.
+     Where it works : Soundboard page only  |  any page
+     When it's active: always on | trigger key toggles arm / lock |
+                       only while the trigger key is held
+============================================================ */
+function sbKeyLabel(code){
+  if (!code) return '\u2014';
+  if (SP2_CODES[code]) return SP2_CODES[code];
+  return String(code).replace(/^Key/, '').replace(/^Digit/, '').toUpperCase();
 }
+function sbApplyArming(){ sbArmed = settings.sbKeys.arming === 'always'; }
+function sbKeysInScope(){
+  if (settings.sbKeys.scope === 'anywhere') return true;
+  return getActiveTab() === 'Soundboard' || multiviewActive;
+}
+function sbStateText(){
+  const sb = settings.sbKeys, key = sbKeyLabel(sb.trigger);
+  if (sb.arming === 'always') return 'Keyboard live';
+  if (sb.arming === 'toggle') return sbArmed ? 'Armed \u00B7 press ' + key + ' to lock' : 'Locked \u00B7 press ' + key + ' to arm';
+  return sbArmed ? 'Armed' : 'Hold ' + key + ' to play';
+}
+function sbSetArmed(v){ sbArmed = !!v; sbUpdateIndicators(); }
+function sbUpdateIndicators(){
+  const sb = settings.sbKeys;
+  const cls = sb.arming === 'always' ? '' : (sbArmed ? ' armed' : ' locked');
+  const head = document.getElementById('sb-key-pill');
+  if (head){
+    // The header pill only appears when a trigger is in use, so it's a quick
+    // "can I play right now?" check from any page.
+    head.style.display = (sb.arming !== 'always' && sbKeysInScopeForPill()) ? '' : 'none';
+    head.className = 'sb-key-pill clickable' + cls;
+    head.textContent = sbStateText();
+  }
+  const bar = document.getElementById('sp2-keystate');
+  if (bar){
+    bar.className = 'sb-key-pill clickable' + (sb.arming === 'always' ? ' armed' : cls);
+    bar.textContent = sbStateText() + (sb.scope === 'page' ? ' \u00B7 this page only' : ' \u00B7 any page');
+  }
+  document.querySelectorAll('.sp2-key.trigger').forEach(function(x){ x.classList.remove('trigger'); });
+  if (sb.arming !== 'always'){
+    const t = SP2_CODES[sb.trigger] ? sp2.keys[sb.trigger] : null;
+    if (t && t.el) t.el.classList.add('trigger');
+  }
+}
+// On other pages the pill is only useful if the keys actually work there.
+function sbKeysInScopeForPill(){ return settings.sbKeys.scope === 'anywhere' || getActiveTab() === 'Soundboard' || multiviewActive; }
+function sbPillClick(){
+  if (settings.sbKeys.arming === 'toggle') sbSetArmed(!sbArmed);
+  else { renderSettingsModal(); document.getElementById('settings-modal').classList.add('show'); }
+}
+document.getElementById('sb-key-pill').addEventListener('click', sbPillClick);
+
+function renderSbKeySettings(){
+  const sb = settings.sbKeys;
+  const scopeRow = document.getElementById('sb-scope-row');
+  const armRow = document.getElementById('sb-arming-row');
+  if (!scopeRow || !armRow) return;
+  scopeRow.innerHTML = ''; armRow.innerHTML = '';
+  [
+    { id: 'page', label: 'Soundboard page only' },
+    { id: 'anywhere', label: 'Any page' }
+  ].forEach(function(o){
+    scopeRow.appendChild(el('button', {
+      class: 'light-style-btn' + (sb.scope === o.id ? ' active' : ''), text: o.label,
+      onClick: function(){ sb.scope = o.id; saveSettings(); renderSbKeySettings(); sbUpdateIndicators(); }
+    }));
+  });
+  [
+    { id: 'always', label: 'Always on' },
+    { id: 'toggle', label: 'Trigger key toggles' },
+    { id: 'hold', label: 'Hold trigger key' }
+  ].forEach(function(o){
+    armRow.appendChild(el('button', {
+      class: 'light-style-btn' + (sb.arming === o.id ? ' active' : ''), text: o.label,
+      onClick: function(){ sb.arming = o.id; sbApplyArming(); saveSettings(); renderSbKeySettings(); sbUpdateIndicators(); }
+    }));
+  });
+  document.getElementById('sb-scope-desc').textContent = sb.scope === 'page'
+    ? 'Keys only fire while the Soundboard (or Multiview) is on screen. On every other page your keyboard behaves normally, so nothing plays by accident while you work in Loops, Music or Mix.'
+    : 'Keys fire from any page, so you can keep Soundboard sounds on your keyboard while you work in Loops, Music or Mix. Typing in a text field never triggers a sound.';
+  document.getElementById('sb-arming-desc').textContent =
+    sb.arming === 'always' ? 'Every Soundboard key plays the moment you press it.'
+    : sb.arming === 'toggle' ? 'Keys stay locked until you tap the trigger key to arm them. Tap it again to lock them. Great for stopping stray key presses from firing sounds.'
+    : 'Keys only play while you are holding the trigger key down, like a safety. Let go and the keyboard is locked again.';
+  const trow = document.getElementById('sb-trigger-row');
+  trow.classList.toggle('disabled', sb.arming === 'always');
+  const tbtn = document.getElementById('sb-trigger-btn');
+  tbtn.className = 'shortcut-key-btn wide' + (sbListeningTrigger ? ' listening' : '');
+  tbtn.textContent = sbListeningTrigger ? 'Press a key\u2026' : sbKeyLabel(sb.trigger);
+  tbtn.onclick = function(){ sbListeningTrigger = !sbListeningTrigger; renderSbKeySettings(); };
+}
+// Capture phase + stopImmediatePropagation so the key you pick to be the
+// trigger is not also treated as a Soundboard key press.
 document.addEventListener('keydown', function(e){
-  if (listeningForShortcutIdx === null) return;
-  e.preventDefault();
-  if (e.key === 'Escape'){ listeningForShortcutIdx = null; renderShortcutList(); return; }
-  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-  const clashIdx = padShortcuts.indexOf(key);
-  if (clashIdx !== -1 && clashIdx !== listeningForShortcutIdx) padShortcuts[clashIdx] = '';
-  padShortcuts[listeningForShortcutIdx] = key;
-  listeningForShortcutIdx = null;
-  saveSettings();
-  renderShortcutList();
-  refreshAllUI();
-});
+  if (!sbListeningTrigger) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.code !== 'Escape'){
+    if (e.code === 'Backspace') return; // reserved: Backspace is the fade-all panic key
+    settings.sbKeys.trigger = e.code;
+    saveSettings();
+  }
+  sbListeningTrigger = false;
+  renderSbKeySettings();
+  sbUpdateIndicators();
+}, true);
 function renderAudioBalanceRow(){
   const row = document.getElementById('audio-balance-row');
   if (!row) return;
@@ -3873,6 +4098,15 @@ document.getElementById('settings-btn').addEventListener('click', function(){
 });
 document.getElementById('settings-close').addEventListener('click', function(){
   document.getElementById('settings-modal').classList.remove('show');
+});
+document.getElementById('about-btn').addEventListener('click', function(){
+  document.getElementById('about-modal').classList.add('show');
+});
+document.getElementById('about-close').addEventListener('click', function(){
+  document.getElementById('about-modal').classList.remove('show');
+});
+document.getElementById('about-modal').addEventListener('click', function(e){
+  if (e.target === this) this.classList.remove('show');
 });
 document.getElementById('settings-stop-all-btn').addEventListener('click', stopAllAudio);
 document.getElementById('settings-clear-data-btn').addEventListener('click', function(){
@@ -5134,7 +5368,7 @@ function deleteMediaPadStorage(kind, pad){
   storageDelete('media-audio:' + kind + ':' + pad.id, false);
 }
 
-function saveSettings(){ markSaving(); storageSet('settings', Object.assign({}, settings, { padShortcuts: padShortcuts, queueTransition: queueTransition }), false); }
+function saveSettings(){ markSaving(); storageSet('settings', Object.assign({}, settings, { queueTransition: queueTransition }), false); }
 
 function saveMixSettings(){
   if (!ctx) return;
@@ -5175,7 +5409,13 @@ function restoreSettings(){
         Object.assign(settings.spTransition, s.spTransition);
         settings.spTransition.stopFade = clamp(settings.spTransition.stopFade || 10, 1, 20);
       }
-      if (Array.isArray(s.padShortcuts) && s.padShortcuts.length === DRUM_PAD_COUNT) padShortcuts = s.padShortcuts.slice();
+      if (typeof s.spOctave === 'number') settings.spOctave = clamp(Math.round(s.spOctave), -2, 2);
+      if (s.sbKeys && typeof s.sbKeys === 'object'){
+        if (s.sbKeys.scope === 'page' || s.sbKeys.scope === 'anywhere') settings.sbKeys.scope = s.sbKeys.scope;
+        if (['always','toggle','hold'].indexOf(s.sbKeys.arming) !== -1) settings.sbKeys.arming = s.sbKeys.arming;
+        if (typeof s.sbKeys.trigger === 'string' && s.sbKeys.trigger) settings.sbKeys.trigger = s.sbKeys.trigger;
+      }
+      sbApplyArming(); renderSPOctave(); sbUpdateIndicators();
       if (s.queueTransition){
         ['loop','music'].forEach(function(k){
           if (s.queueTransition[k]) Object.assign(queueTransition[k], s.queueTransition[k]);
@@ -6019,7 +6259,14 @@ function sp2Fit(){
   const W=body.clientWidth; if(!W)return;
   const n=sp2.nav?1:0, m=sp2.num?1:0;
   const units=15+3*n+4*m, fixed=82+32*n+36*m+10*(n+m);
-  const u=clamp(Math.floor((W-fixed)/units),22,64);
+  let u=clamp(Math.floor((W-fixed)/units),22,64);
+  // Also fit by height so the whole keyboard stays on screen without page scrolling
+  // (the editor + library below it scroll inside the Soundboard panel).
+  const root=document.getElementById('sp2-root'), tb=root&&root.querySelector('.sp2-toolbar');
+  if(root&&root.clientHeight){
+    const availH=root.clientHeight-(tb?tb.offsetHeight+10:0);
+    u=Math.min(u,Math.max(22,Math.floor((availH*0.62-42)/6)));
+  }
   body.style.setProperty('--sp2u',u+'px'); body.classList.toggle('tiny',u<40);
 }
 window.addEventListener('resize',sp2Fit);
@@ -6038,7 +6285,7 @@ function renderSoundboard(){
       storageList('sp2-audio:',false).then(function(ks){ks.forEach(function(x){storageDelete(x,false);});});sp2Save();renderSoundboard();}),
     T('Open keymap',function(){fileIn.click();}),T('Save keymap',sp2Export),fileIn,stop,
     el('span',{class:'section-hint',text:'view'}),vm,
-    T('background key input',function(){sp2.bg=!sp2.bg;sp2Save();renderSoundboard();},sp2.bg),
+    el('span',{class:'sb-key-pill clickable',id:'sp2-keystate',title:'Soundboard keyboard trigger \u2014 change it in Settings',onClick:sbPillClick}),
     T('activity logging',function(){sp2.logOn=!sp2.logOn;renderSoundboard();},sp2.logOn),
     T('nav keys',function(){sp2.nav=!sp2.nav;renderSoundboard();},sp2.nav),
     T('numpad',function(){sp2.num=!sp2.num;renderSoundboard();},sp2.num),
@@ -6053,7 +6300,7 @@ function renderSoundboard(){
   if(sp2.logOn)root.appendChild(el('pre',{class:'sp2-log',id:'sp2-log',text:sp2.log.join('\n')}));
   root.appendChild(el('div',{id:'sp2-panel'}));
   root.appendChild(el('div',{id:'sp2-book',class:'sp2-book'}));
-  renderSoundboardPanel(); sp2Chan(); sp2RenderBook();
+  renderSoundboardPanel(); sp2Chan(); sp2RenderBook(); sbUpdateIndicators();
 }
 function renderSoundboardPanel(){
   const wrap=document.getElementById('sp2-panel'); if(!wrap)return; wrap.innerHTML='';
@@ -6144,26 +6391,51 @@ function renderSoundboardPanel(){
 }
 document.addEventListener('keydown',function(e){
   const t=e.target&&e.target.tagName;
-  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.ctrlKey||e.metaKey||e.altKey)return;
-  const tab=getActiveTab();
-  if(!sp2.bg&&tab!=='Soundboard'&&tab!=='multiview')return;
-  if(/^(Numpad|NumLock)/.test(e.code)&&!sp2.num){sp2.num=true;renderSoundboard();}
-  if(/^(Insert|Home|End|PageUp|PageDown|Delete)$/.test(e.code)&&!sp2.nav){sp2.nav=true;renderSoundboard();}
+  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||(e.target&&e.target.isContentEditable)||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(sbListeningTrigger)return;                                   // Settings is capturing a new trigger key
+  if(document.querySelector('.modal-overlay.show'))return;        // a dialog is open — keys belong to it
+  if(!sbKeysInScope())return;                                     // wrong page: leave the keyboard alone
+  const sb=settings.sbKeys;
+  // Trigger key: arms / locks the keyboard and is never played as a sound.
+  if(sb.arming!=='always'&&e.code===sb.trigger){
+    e.preventDefault();
+    if(!e.repeat){ if(sb.arming==='toggle')sbSetArmed(!sbArmed); else sbSetArmed(true); }
+    return;
+  }
+  // Esc / Backspace are the panic buttons — they work even while locked.
   if(e.code==='Escape'){sp2StopAll(0.04);return;}
   if(e.code==='Backspace'){e.preventDefault();sp2StopAll(2);return;}
+  if(!sbArmed)return;
+  if(/^(Numpad|NumLock)/.test(e.code)&&!sp2.num){sp2.num=true;renderSoundboard();}
+  if(/^(Insert|Home|End|PageUp|PageDown|Delete)$/.test(e.code)&&!sp2.nav){sp2.nav=true;renderSoundboard();}
   if(e.repeat||!SP2_CODES[e.code])return;
   const k=sp2.keys[e.code]; if(!k||!k.buffer)return;
   e.preventDefault(); sp2Play(e.code,e.shiftKey);
 });
 document.addEventListener('keyup',function(e){
+  const sb=settings.sbKeys;
+  if(sb.arming==='hold'&&e.code===sb.trigger)sbSetArmed(false);
   const k=sp2.keys[e.code]; if(k&&k.mode==='hold')sp2Stop(k);
 });
+// Losing focus while holding the trigger would otherwise leave the keyboard armed.
+window.addEventListener('blur',function(){ if(settings.sbKeys.arming==='hold')sbSetArmed(false); });
+// Header pill visibility depends on which page is showing.
+document.getElementById('main-nav').addEventListener('click',function(){ setTimeout(sbUpdateIndicators,0); });
+document.getElementById('multiview-btn').addEventListener('click',function(){ setTimeout(sbUpdateIndicators,0); });
 
 /* ============================================================
    INIT
 ============================================================ */
 renderSoundPadsUI();
 renderSoundboardUI();
+sbApplyArming();
+sbUpdateIndicators();
+// Keep the page's usable height in sync with the fixed Now Playing bar so nothing hides behind it.
+(function(){
+  const g=document.getElementById('global-now-playing');
+  if(!g||!window.ResizeObserver)return;
+  new ResizeObserver(function(){ document.documentElement.style.setProperty('--np-h',g.offsetHeight+'px'); sp2Fit(); }).observe(g);
+})();
 initMediaListUI('loop');
 initMediaListUI('music');
 renderLoopsUI();
