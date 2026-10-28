@@ -123,7 +123,7 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 #app{ display:none; min-height:100vh; flex-direction:column; }
 #app.show{ display:flex; }
 .app-header{
-  position:sticky; top:0; z-index:40; display:flex; align-items:center; justify-content:space-between; gap:16px;
+  position:relative; z-index:40; display:flex; align-items:center; justify-content:space-between; gap:16px;
   padding:14px 22px; background:rgba(10,9,11,0.85); backdrop-filter:blur(10px); border-bottom:1px solid var(--border);
 }
 .header-left{ display:flex; align-items:center; gap:14px; min-width:0; }
@@ -143,6 +143,8 @@ button:disabled{ opacity:0.35; pointer-events:none; }
 #save-indicator.active{ color:var(--green); }
 
 .main-nav{ display:flex; gap:6px; padding:12px 22px 0; overflow-x:auto; }
+.main-nav > .nav-tab:first-child{ margin-left:auto; }
+.main-nav > .nav-tab:last-child{ margin-right:auto; }
 .nav-tab{
   padding:10px 18px; border:1px solid var(--border); border-bottom:none; border-radius:9px 9px 0 0; background:var(--panel);
   color:var(--text-muted); font-family:var(--font-display); font-weight:600; font-size:14px; letter-spacing:0.06em; white-space:nowrap;
@@ -728,9 +730,10 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 }
 
 /* ============================= PAGE CAROUSEL ============================= */
-/* The selected page sits in the middle at full size. Its neighbours sit either side
-   as small, dimmed previews (Sound Pads has none on the left, Mix none on the right).
-   Switching pages slides everything smoothly along, like turning a picker wheel. */
+/* The selected page sits in the middle at full size. Its neighbours sit either side,
+   drawn at one shared height and dropped slightly lower, running off the edge of the
+   screen so you read them as the next page over (Sound Pads has none on the left, Mix none on
+   the right). Switching pages slides everything along, like turning a picker wheel. */
 #app:not(.multiview-mode) .app-main{
   flex:0 0 auto; position:relative; overflow:hidden; max-width:none; padding-left:0; padding-right:0;
   transition:height .75s cubic-bezier(.22,1,.36,1);
@@ -750,13 +753,11 @@ input[type=range]::-moz-range-thumb{ width:14px; height:14px; border-radius:50%;
 #app:not(.multiview-mode) .app-main > .section.cv-active:not(#section-multiview){ z-index:3; }
 #app:not(.multiview-mode) .app-main > .section.cv-side:not(#section-multiview){
   z-index:2; cursor:pointer;
-  -webkit-mask-image:linear-gradient(to bottom,#000 0,#000 62%,transparent 100%);
-          mask-image:linear-gradient(to bottom,#000 0,#000 62%,transparent 100%);
 }
 /* the dim layer on a preview also catches the click, so nothing inside it can be pressed by accident */
 #app:not(.multiview-mode) .app-main > .section.cv-side:not(#section-multiview)::after{
   content:''; position:absolute; inset:0; z-index:60; border-radius:14px;
-  background:rgba(6,6,8,.18); transition:background .3s ease;
+  background:rgba(6,6,8,.12); transition:background .3s ease;
 }
 #app:not(.multiview-mode) .app-main > .section.cv-side:not(#section-multiview):hover::after{ background:rgba(6,6,8,0); }
 
@@ -3874,7 +3875,7 @@ function initAllMultiviewSplitters(){
 ============================================================ */
 const CV_ORDER = ['soundpads', 'Soundboard', 'loops', 'mix'];
 const CV_MAXW = { soundpads: 1276, Soundboard: 1440, loops: 1276, mix: 1276 };
-const CV_SCALE = 0.42, CV_MIN_SCALE = 0.3;
+const CV_SIDE_H = 0.77, CV_MIN_SC = 0.4, CV_MAX_SC = 0.85, CV_DROP = 0.34, CV_GAP = 26, CV_PEEK = 110, CV_PARK = 0.3;
 let cvRO = null, cvObserved = null, cvLastW = -1, cvLastNav = 0;
 function cvMain(){ return document.querySelector('.app-main'); }
 function cvSec(key){ return document.getElementById('section-' + key); }
@@ -3903,28 +3904,35 @@ function cvLayout(){
   const W = main.clientWidth;
   if (act < 0 || !W) return;
   cvLastW = W;
-  const aw = Math.min(CV_MAXW[CV_ORDER[act]], W - 44);
-  const roomy = W >= 900;                               // too narrow for side previews: just slide
+  const roomy = W >= 1100;                              // too narrow for side previews: just slide
+  // keep a strip of each neighbour on screen: the centre page gives up width before the previews do
+  const aw = Math.min(CV_MAXW[CV_ORDER[act]], roomy ? W - 2 * (CV_GAP + CV_PEEK) : W - 44);
+  // widths first, so every page reports the height it will really have at that width
   CV_ORDER.forEach(function(key, i){
     const sec = cvSec(key); if (!sec) return;
-    const d = i - act, nat = Math.min(CV_MAXW[key], W - 44);
-    let x = 0, sc = 1, cls = 'cv-active';
+    sec.style.width = (i === act ? aw : Math.min(CV_MAXW[key], W - 44)) + 'px';
+  });
+  const actH = cvSec(CV_ORDER[act]).offsetHeight;
+  CV_ORDER.forEach(function(key, i){
+    const sec = cvSec(key); if (!sec) return;
+    const d = i - act;
+    let x = 0, y = 0, sc = 1, cls = 'cv-active';
     if (d !== 0){
       const dir = d > 0 ? 1 : -1;
       if (Math.abs(d) === 1 && roomy){
-        const gutter = (W - aw) / 2;
-        sc = Math.max(CV_MIN_SCALE, Math.min(CV_SCALE, (gutter - 24) / nat));
-        const pw = nat * sc;
-        x = Math.min(aw / 2 + 24 + pw / 2, W / 2 - 8 - pw / 2) * dir;   // tuck under the page if the gutter is tight
+        // both neighbours are drawn the same height (a share of the centre page), so each gets its own scale
+        const nat = parseFloat(sec.style.width), h = sec.offsetHeight || actH;
+        sc = Math.max(CV_MIN_SC, Math.min(CV_MAX_SC, CV_SIDE_H * actH / h));
+        x = (aw / 2 + CV_GAP + nat * sc / 2) * dir;     // inner edge sits one gap away from the centre page
+        y = CV_DROP * (actH - h * sc);
         cls = 'cv-side';
       } else {
-        sc = Math.abs(d) === 1 ? 1 : CV_MIN_SCALE;
-        x = dir * (W * (Math.abs(d) === 1 ? 1 : 0.9));                   // parked off-screen, ready to slide in
+        sc = Math.abs(d) === 1 ? 1 : CV_PARK;
+        x = dir * (W * (Math.abs(d) === 1 ? 1 : 0.9));  // parked off-screen, ready to slide in
         cls = 'cv-hidden';
       }
     }
-    sec.style.width = nat + 'px';
-    sec.style.transform = 'translateX(calc(-50% + ' + Math.round(x) + 'px)) scale(' + sc.toFixed(3) + ')';
+    sec.style.transform = 'translate(calc(-50% + ' + Math.round(x) + 'px), ' + Math.round(y) + 'px) scale(' + sc.toFixed(3) + ')';
     sec.classList.toggle('cv-active', cls === 'cv-active');
     sec.classList.toggle('cv-side', cls === 'cv-side');
     sec.classList.toggle('cv-hidden', cls === 'cv-hidden');
